@@ -125,6 +125,16 @@
     const loadingMask = document.getElementById("loading-mask");
     const sessionSelect = document.getElementById("session-select");
 
+  // ✅ 自動登入檢查
+  (async () => {
+    const res = await fetch("/api/admin/check");
+    const data = await res.json();
+    if (data.isAdmin) {
+      document.getElementById("admin-panel").style.display = "block";
+      document.getElementById("login-section").style.display = "none";
+    }
+  })();
+
     const showLoading = (b) => loadingMask.style.display = b ? "flex" : "none";
 window.addEventListener("load", async () => {
   const res = await fetch(`${apiBase}/api/admin/status`, { credentials: "include" });

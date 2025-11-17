@@ -152,14 +152,18 @@ app.get("/api/result", requireAdmin, (req, res) => {
   res.json(result);
 });
 
-// === 檢查投票碼有效性 ===
 app.get("/api/check", (req, res) => {
-  const { code, session } = req.query;
+  const { session, code } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));
-  const token = tokens.find((t) => t.code === code);
-  if (!token) return res.json({ valid: false });
-  if (token.voted) return res.json({ valid: true, voted: true });
-  res.json({ valid: true });
+  const token = tokens.find(t => t.code === code);
+  if (!token) return res.status(404).send({ ok: false, msg: "無效的投票碼" });
+
+  // 🚫 若已投票則直接阻擋進入
+  if (token.voted) {
+    return res.status(403).send({ ok: false, msg: "此投票碼已投票，無法再次投票。" });
+  }
+
+  res.send({ ok: true, voted: false });
 });
 
 // === 查看投票進度 ===

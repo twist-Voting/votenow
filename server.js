@@ -1,234 +1,165 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import bodyParser from "body-parser";
-import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import cors from "cors";
-import dotenv from "dotenv";
+import PDFDocument from "pdfkit";
 import archiver from "archiver";
-// import path from "path";
-import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config();
+import cors from "cors";
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(express.static("public"));
 
-// ✅ 確保資料夾存在
-const DATA_DIR = "./data";
-const TOKEN_DIR = "./pdf_tokens";
+const __dirname = path.resolve(".");
+const DATA_DIR = path.join(__dirname, "data");
+const TOKEN_DIR = path.join(__dirname, "pdf_tokens");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 if (!fs.existsSync(TOKEN_DIR)) fs.mkdirSync(TOKEN_DIR);
 
-// ✅ 工具函式
-function getFile(session, type) {
-  return path.join(DATA_DIR, `${session}_${type}.json`);
+// 🧩 安全寫入佇列機制（避免多人同時寫入）
+const writeQueue = new Map();
+async function safeWriteJson(file, data) {
+  if (!writeQueue.has(file)) writeQueue.set(file, Promise.resolve());
+  const queue = writeQueue.get(file).then(async () => {
+    await fs.promises.writeFile(file, JSON.stringify(data, null, 2), "utf8");
+  });
+  writeQueue.set(file, queue);
+  await queue;
 }
 
-function loadJSON(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file));
-  } catch {
-    return [];
-  }
-}
-
-function saveJSON(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-
-// ✅ 一鍵下載 PDF 壓縮包（支援中文檔名）
-app.get("/api/download-pdf", async (req, res) => {
-  const { session } = req.query;
-  const dir = path.join(TOKEN_DIR, session);
-
-  if (!fs.existsSync(dir)) {
-    return res.status(404).send("找不到 PDF 資料夾，請先匯出 PDF");
-  }
-
-  const zipName = `${session}_pdf_tokens.zip`;
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(zipName)}"; filename*=UTF-8''${encodeURIComponent(zipName)}`
-  );
-  res.setHeader("Content-Type", "application/zip");
-
-  const archive = archiver("zip", { zlib: { level: 9 } });
-  archive.pipe(res);
-  archive.directory(dir, false);
-  archive.finalize();
-});
-
-// 🧨 重新投票（清除投票紀錄，但保留投票碼與名單）
-app.delete("/api/reset", (req, res) => {
-  const { session } = req.query;
-  if (!session) {
-    return res.status(400).json({ success: false, message: "缺少 session 參數" });
-  }
-
-  try {
-    const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
-    const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
-
-    // 🟢 1. 重置投票碼狀態
-    if (fs.existsSync(tokenFile)) {
-      const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
-      tokens.forEach(t => {
-        t.voted = false; // 清除已投票標記
-      });
-      fs.writeFileSync(tokenFile, JSON.stringify(tokens, null, 2), "utf8");
-      console.log(`✅ ${session} 投票碼已重置 voted 狀態`);
-    } else {
-      console.warn(`⚠️ 找不到投票碼檔案：${tokenFile}`);
-    }
-
-    // 🟢 2. 刪除投票紀錄
-    if (fs.existsSync(voteFile)) {
-      fs.unlinkSync(voteFile);
-      console.log(`🗑️ ${session} 投票紀錄已清除`);
-    }
-
-    return res.json({
-      success: true,
-      message: `「${session}」投票已重置（投票碼保留）`,
-    });
-  } catch (error) {
-    console.error("❌ 重置投票時發生錯誤：", error);
-    return res.status(500).json({ success: false, message: "伺服器錯誤，重置失敗" });
-  }
-});
-
-
-app.get("/api/check", (req, res) => {
-  const { session, code } = req.query;
-  const tokens = loadJSON(getFile(session, "tokens"));
-  const votes = loadJSON(getFile(session, "votes"));
-  const token = tokens.find(t => t.code === code);
-  const alreadyVoted = votes.some(v => v.code === code);
-
-  res.json({ valid: !!token && !alreadyVoted });
-});
-
-// ✅ 管理者登入
+// 🔒 簡易登入驗證
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "vote2025";
 app.post("/api/admin/login", (req, res) => {
-  const { password } = req.body;
-  if (password === process.env.ADMIN_PASSWORD || password === "twist2024") {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
     res.json({ success: true });
   } else {
-    res.status(401).json({ success: false, message: "密碼錯誤" });
+    res.status(401).json({ success: false, message: "帳號或密碼錯誤" });
   }
 });
 
-// ✅ 取得候選人名單
+// 📋 載入候選人
 app.get("/api/candidates", (req, res) => {
   const { session } = req.query;
-  const file = getFile(session, "candidates");
-  const candidates = loadJSON(file);
-  res.json(candidates);
+  const file = path.join(DATA_DIR, `${session}-candidates.json`);
+  if (!fs.existsSync(file)) return res.json([]);
+  res.json(JSON.parse(fs.readFileSync(file)));
 });
 
-// ✅ 取得目前場次的投票碼清單
-app.get("/api/tokens", (req, res) => {
-  const { session } = req.query;
-  const file = getFile(session, "tokens");
-  const tokens = loadJSON(file);
-  res.json(tokens);
-});
-
-// ✅ 更新候選人名單
-app.post("/api/candidates", (req, res) => {
+// ✏️ 儲存候選人名單
+app.post("/api/candidates", async (req, res) => {
   const { session, names } = req.body;
-  if (!session || !names) {
-    return res.status(400).json({ success: false, message: "缺少必要欄位" });
-  }
-  const file = getFile(session, "candidates");
-  const candidates = names.map((name, i) => ({ id: i + 1, name }));
-  saveJSON(file, candidates);
+  const file = path.join(DATA_DIR, `${session}-candidates.json`);
+  await safeWriteJson(file, names.map((n, i) => ({ id: i + 1, name: n })));
   res.json({ success: true });
 });
 
-// ✅ 產生投票碼
-app.get("/api/generate-tokens", (req, res) => {
+// 🔢 產生投票碼
+app.get("/api/generate-tokens", async (req, res) => {
   const { session, count = 50 } = req.query;
-  const tokens = Array.from({ length: Number(count) }, () => ({
+  const file = path.join(DATA_DIR, `${session}-tokens.json`);
+  const tokens = Array.from({ length: parseInt(count) }).map(() => ({
     code: Math.random().toString(36).substring(2, 8).toUpperCase(),
     voted: false,
   }));
-  saveJSON(getFile(session, "tokens"), tokens);
-  res.json(tokens);
+  await safeWriteJson(file, tokens);
+  res.json({ success: true, tokens });
 });
 
-// ✅ 檢查投票碼
-app.post("/api/check", (req, res) => {
-  const { session, code } = req.body;
-  const tokens = loadJSON(getFile(session, "tokens"));
-  const token = tokens.find((t) => t.code === code);
-  if (token && !token.voted) res.json({ valid: true });
-  else res.json({ valid: false });
+// 📖 查看投票碼
+app.get("/api/tokens", (req, res) => {
+  const { session } = req.query;
+  const file = path.join(DATA_DIR, `${session}-tokens.json`);
+  if (!fs.existsSync(file)) return res.json([]);
+  res.json(JSON.parse(fs.readFileSync(file)));
 });
 
-// ✅ 提交投票
-app.post("/api/vote", (req, res) => {
+// 🗳️ 投票
+app.post("/api/vote", async (req, res) => {
   const { session, code, choices } = req.body;
-  if (!session || !code || !choices) {
-    return res.status(400).json({ success: false, message: "缺少必要欄位" });
-  }
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+  const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
 
-  const tokensFile = getFile(session, "tokens");
-  const votesFile = getFile(session, "votes");
-  const tokens = loadJSON(tokensFile);
-  const votes = loadJSON(votesFile);
+  if (!fs.existsSync(tokenFile))
+    return res.status(400).json({ success: false, error: "投票碼不存在" });
 
+  const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
   const token = tokens.find((t) => t.code === code);
-  if (!token) return res.status(400).json({ success: false, message: "投票碼不存在" });
-  if (token.voted) return res.status(400).json({ success: false, message: "投票碼已使用" });
+  if (!token) return res.status(400).json({ success: false, error: "無效投票碼" });
+  if (token.voted) return res.status(400).json({ success: false, error: "此投票碼已使用" });
 
+  // 更新 token 狀態
   token.voted = true;
+  await safeWriteJson(tokenFile, tokens);
+
+  // 儲存投票結果
+  let votes = [];
+  if (fs.existsSync(voteFile)) votes = JSON.parse(fs.readFileSync(voteFile, "utf8"));
   votes.push({ code, choices });
-  saveJSON(tokensFile, tokens);
-  saveJSON(votesFile, votes);
+  await safeWriteJson(voteFile, votes);
 
   res.json({ success: true });
 });
 
-// ✅ 取得投票進度
-app.get("/api/progress", (req, res) => {
-  const { session } = req.query;
-  const tokens = loadJSON(getFile(session, "tokens"));
-  const voted = tokens.filter((t) => t.voted).length;
-  const total = tokens.length;
-  res.json({ voted, total });
-});
-
-// ✅ 計算投票結果
+// 📊 結果統計
 app.get("/api/result", (req, res) => {
   const { session } = req.query;
-  const candidates = loadJSON(getFile(session, "candidates"));
-  const votes = loadJSON(getFile(session, "votes"));
-  const results = candidates.map((c) => ({
+  const candidateFile = path.join(DATA_DIR, `${session}-candidates.json`);
+  const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+
+  if (!fs.existsSync(candidateFile)) return res.json({ total: 0, voted: 0, counts: [] });
+
+  const candidates = JSON.parse(fs.readFileSync(candidateFile, "utf8"));
+  const votes = fs.existsSync(voteFile) ? JSON.parse(fs.readFileSync(voteFile, "utf8")) : [];
+  const tokens = fs.existsSync(tokenFile) ? JSON.parse(fs.readFileSync(tokenFile, "utf8")) : [];
+
+  const countMap = {};
+  votes.forEach((v) => v.choices.forEach((id) => (countMap[id] = (countMap[id] || 0) + 1)));
+
+  const counts = candidates.map((c) => ({
     name: c.name,
-    votes: votes.filter((v) => v.choices.includes(c.id)).length,
+    votes: countMap[c.id] || 0,
   }));
-  results.sort((a, b) => b.votes - a.votes);
-  res.json(results);
+
+  res.json({
+    total: tokens.length,
+    voted: tokens.filter((t) => t.voted).length,
+    counts,
+  });
 });
 
-// 匯出 PDF
+// 🧨 重新投票（不刪投票碼）
+app.delete("/api/reset", async (req, res) => {
+  const { session } = req.query;
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+  const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
+
+  try {
+    if (fs.existsSync(tokenFile)) {
+      const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+      tokens.forEach((t) => (t.voted = false));
+      await safeWriteJson(tokenFile, tokens);
+    }
+    if (fs.existsSync(voteFile)) fs.unlinkSync(voteFile);
+
+    res.json({ success: true, message: `「${session}」投票已重置（保留投票碼）` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "重置失敗" });
+  }
+});
+
+// 🧾 匯出 PDF（含 QR code 與 Render 網址）
 app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
-  const file = getFile(session, "tokens");
-  const tokens = loadJSON(file);
-  if (!tokens.length) return res.status(400).send("尚未產生投票碼");
+  const file = path.join(DATA_DIR, `${session}-tokens.json`);
+  if (!fs.existsSync(file)) return res.status(400).send("尚未產生投票碼");
 
+  const tokens = JSON.parse(fs.readFileSync(file, "utf8"));
   const outDir = path.join(TOKEN_DIR, session);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-const fontPath = path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf");
 
   for (const t of tokens) {
     const doc = new PDFDocument();
@@ -236,36 +167,38 @@ const fontPath = path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf
     const stream = fs.createWriteStream(output);
     doc.pipe(stream);
 
-    // ✅ 使用專案內嵌中文字型
-    // doc.font(fontPath);
-if (!fs.existsSync(fontPath)) {
-  console.warn("⚠️ 找不到 NotoSansTC 字型，改用內建 Helvetica");
-  doc.font("Helvetica");
-} else {
-  doc.font(fontPath);
-}
+    // 📄 使用雲端網址（Render）
+    const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
+    const qrData = await QRCode.toDataURL(qrUrl);
+
+    try {
+      doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
+    } catch {
+      doc.font("Helvetica");
+    }
 
     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
     doc.moveDown();
-    doc.fontSize(14).text("投票說明：");
-    if (session.includes("監事")) {
-      doc.text("監事選舉請勾選 5 人，票數最高之 5 人當選，1 人候補。");
-    } else {
-      doc.text("理事選舉請勾選 15 人，票數最高之 15 人當選，3 人候補。");
-    }
+    doc.fontSize(14).text(session.includes("監事") ?
+      "監事選舉請勾選 5 人，票數最高之 5 人當選，1 人候補。" :
+      "理事選舉請勾選 15 人，票數最高之 15 人當選，3 人候補。");
     doc.moveDown();
-
-    const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
-    const qrData = await QRCode.toDataURL(qrUrl);
     doc.image(Buffer.from(qrData.split(",")[1], "base64"), { fit: [150, 150], align: "center" });
     doc.moveDown();
     doc.fontSize(16).text(`投票碼：${t.code}`, { align: "center" });
     doc.end();
-
     await new Promise((resolve) => stream.on("finish", resolve));
   }
 
-  res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF`);
+  // 打包 ZIP
+  const zipPath = path.join(TOKEN_DIR, `${session}-pdfs.zip`);
+  const output = fs.createWriteStream(zipPath);
+  const archive = archiver("zip");
+  archive.pipe(output);
+  archive.directory(outDir, false);
+  await archive.finalize();
+
+  res.download(zipPath, `${session}-pdfs.zip`);
 });
 
 // ✅ 啟動伺服器

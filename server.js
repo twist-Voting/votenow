@@ -64,6 +64,31 @@ app.get("/api/download-pdf", async (req, res) => {
   archive.finalize();
 });
 
+// 🧨 重新投票（清除投票紀錄，但保留投票碼與名單）
+app.delete("/api/reset", async (req, res) => {
+  const { session } = req.query;
+  try {
+    const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+    const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
+
+    // 1️⃣ 如果有投票碼資料，將 voted 狀態全部重置為 false
+    if (fs.existsSync(tokenFile)) {
+      const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+      tokens.forEach(t => t.voted = false);
+      fs.writeFileSync(tokenFile, JSON.stringify(tokens, null, 2), "utf8");
+    }
+
+    // 2️⃣ 刪除投票紀錄檔案（例如紀錄每位投票者的選擇）
+    if (fs.existsSync(voteFile)) fs.unlinkSync(voteFile);
+
+    res.json({ success: true, message: `「${session}」投票已重置（保留投票碼）` });
+  } catch (e) {
+    console.error("❌ 重置失敗：", e);
+    res.status(500).json({ error: "Reset failed" });
+  }
+});
+
+
 app.get("/api/check", (req, res) => {
   const { session, code } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));

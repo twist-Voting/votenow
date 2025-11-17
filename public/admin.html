@@ -55,6 +55,12 @@
       transition: background 0.3s;
     }
     button:hover { background: #0056b3; }
+    .danger {
+      background: #dc3545;
+    }
+    .danger:hover {
+      background: #b02a37;
+    }
     #loginSection { text-align: center; margin-top: 80px; }
     #dashboard { display: none; }
     .stats {
@@ -66,7 +72,7 @@
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.85);
       display: none;
       justify-content: center;
       align-items: center;
@@ -124,6 +130,7 @@
       <button id="toggleTokens">📋 顯示／隱藏投票碼清單</button>
       <button id="exportPDF">匯出投票 QR PDF</button>
       <button id="downloadPDF">📥 下載 PDF 壓縮檔</button>
+      <button class="danger" id="resetVoting">🧨 重新投票（清除所有投票紀錄）</button>
       <div id="tokenList" class="stats" style="display:none;"></div>
     </div>
 
@@ -138,6 +145,8 @@
     const adminPass = "twist2025";
     const mask = document.getElementById("loading-mask");
 
+    const loading = (show) => mask.style.display = show ? "flex" : "none";
+
     document.getElementById("loginBtn").addEventListener("click", async () => {
       if (document.getElementById("adminPass").value === adminPass) {
         document.getElementById("loginSection").style.display = "none";
@@ -148,8 +157,6 @@
         document.getElementById("loginMsg").textContent = "密碼錯誤！";
       }
     });
-
-    const loading = (show) => mask.style.display = show ? "flex" : "none";
 
     async function loadVoteStats() {
       const session = document.getElementById("sessionSelect").value;
@@ -202,7 +209,7 @@
       loadVoteStats();
     });
 
-    // 🧾 顯示／隱藏投票碼清單（含是否已投票）
+    // 📋 顯示／隱藏投票碼清單
     document.getElementById("toggleTokens").addEventListener("click", async () => {
       const tokenDiv = document.getElementById("tokenList");
       if (tokenDiv.style.display === "none") {
@@ -231,6 +238,21 @@
     document.getElementById("downloadPDF").addEventListener("click", () => {
       const session = document.getElementById("sessionSelect").value;
       window.open(`/api/download-pdf?session=${session}`, "_blank");
+    });
+
+    // 🧨 重新投票（清除投票碼與投票紀錄）
+    document.getElementById("resetVoting").addEventListener("click", async () => {
+      const session = document.getElementById("sessionSelect").value;
+      if (!confirm(`⚠️ 確定要重新開始「${session}」投票嗎？\n此動作會刪除所有投票碼與投票紀錄，但保留候選人名單。`)) return;
+      loading(true);
+      const res = await fetch(`/api/reset?session=${session}`, { method: "DELETE" });
+      loading(false);
+      if (res.ok) {
+        alert(`🧨「${session}」投票已重置成功！`);
+        loadVoteStats();
+      } else {
+        alert("❌ 重置失敗，請檢查伺服器端 log。");
+      }
     });
 
     document.getElementById("toggleResult").addEventListener("click", async () => {

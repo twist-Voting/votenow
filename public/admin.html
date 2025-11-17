@@ -157,14 +157,13 @@
     // ✅ 顯示／隱藏遮罩
     const loading = (show) => mask.style.display = show ? "flex" : "none";
 
-    // ✅ 載入投票統計
+    // ✅ 載入投票統計（僅顯示已投票數）
     async function loadVoteStats() {
       const session = document.getElementById("sessionSelect").value;
       try {
         const res = await fetch(`/api/progress?session=${session}`);
         const data = await res.json();
-        document.getElementById("voteStats").innerHTML =
-          `🧾 投票總數：${data.voted}`;
+        document.getElementById("voteStats").innerHTML = `🧾 已投票人數：<b>${data.voted}</b>`;
       } catch {
         document.getElementById("voteStats").textContent = "無法取得統計資料";
       }

@@ -54,6 +54,13 @@ app.get("/api/candidates", (req, res) => {
   res.json(candidates);
 });
 
+// ✅ 取得目前場次的投票碼清單
+app.get("/api/tokens", (req, res) => {
+  const { session } = req.query;
+  const file = getFile(session, "tokens");
+  const tokens = loadJSON(file);
+  res.json(tokens);
+});
 
 // ✅ 更新候選人名單
 app.post("/api/candidates", (req, res) => {

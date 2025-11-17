@@ -190,6 +190,16 @@ app.post("/api/vote", async (req, res) => {
 
   res.json({ success: true });
 });
+// ✅ 取得投票碼清單
+app.get("/api/tokens", requireAdmin, (req, res) => {
+  const { session } = req.query;
+  const file = getFile(session, "tokens");
+  if (!fs.existsSync(file)) {
+    return res.json([]); // 若尚未產生，回傳空陣列避免報錯
+  }
+  const tokens = loadJSON(file);
+  res.json(tokens);
+});
 
 // ✅ 統計結果
 app.get("/api/result", requireAdmin, (req, res) => {

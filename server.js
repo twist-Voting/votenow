@@ -65,26 +65,41 @@ app.get("/api/download-pdf", async (req, res) => {
 });
 
 // 🧨 重新投票（清除投票紀錄，但保留投票碼與名單）
-app.delete("/api/reset", async (req, res) => {
+app.delete("/api/reset", (req, res) => {
   const { session } = req.query;
+  if (!session) {
+    return res.status(400).json({ success: false, message: "缺少 session 參數" });
+  }
+
   try {
     const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
     const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
 
-    // 1️⃣ 如果有投票碼資料，將 voted 狀態全部重置為 false
+    // 🟢 1. 重置投票碼狀態
     if (fs.existsSync(tokenFile)) {
       const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
-      tokens.forEach(t => t.voted = false);
+      tokens.forEach(t => {
+        t.voted = false; // 清除已投票標記
+      });
       fs.writeFileSync(tokenFile, JSON.stringify(tokens, null, 2), "utf8");
+      console.log(`✅ ${session} 投票碼已重置 voted 狀態`);
+    } else {
+      console.warn(`⚠️ 找不到投票碼檔案：${tokenFile}`);
     }
 
-    // 2️⃣ 刪除投票紀錄檔案（例如紀錄每位投票者的選擇）
-    if (fs.existsSync(voteFile)) fs.unlinkSync(voteFile);
+    // 🟢 2. 刪除投票紀錄
+    if (fs.existsSync(voteFile)) {
+      fs.unlinkSync(voteFile);
+      console.log(`🗑️ ${session} 投票紀錄已清除`);
+    }
 
-    res.json({ success: true, message: `「${session}」投票已重置（保留投票碼）` });
-  } catch (e) {
-    console.error("❌ 重置失敗：", e);
-    res.status(500).json({ error: "Reset failed" });
+    return res.json({
+      success: true,
+      message: `「${session}」投票已重置（投票碼保留）`,
+    });
+  } catch (error) {
+    console.error("❌ 重置投票時發生錯誤：", error);
+    return res.status(500).json({ success: false, message: "伺服器錯誤，重置失敗" });
   }
 });
 

@@ -104,7 +104,6 @@
       <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
       <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
       <button id="export-pdf">🧾 匯出 PDF</button>
-      <button id="download-pdf">⬇️ 下載 PDF 壓縮包</button>
       <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
 
       <div id="progress" class="info-box">尚未載入投票進度</div>
@@ -125,26 +124,19 @@
     const loadingMask = document.getElementById("loading-mask");
     const sessionSelect = document.getElementById("session-select");
 
-  // ✅ 自動登入檢查
-  (async () => {
-    const res = await fetch("/api/admin/check");
-    const data = await res.json();
-    if (data.isAdmin) {
-      document.getElementById("admin-panel").style.display = "block";
-      document.getElementById("login-section").style.display = "none";
-    }
-  })();
-
     const showLoading = (b) => loadingMask.style.display = b ? "flex" : "none";
-window.addEventListener("load", async () => {
-  const res = await fetch(`${apiBase}/api/admin/status`, { credentials: "include" });
-  const data = await res.json();
-  if (data.loggedIn) {
-    loginBox.classList.add("hidden");
-    adminPanel.classList.remove("hidden");
-    loadAll();
-  }
-});
+
+    // ✅ 自動登入檢查
+    window.addEventListener("load", async () => {
+      const res = await fetch(`${apiBase}/api/admin/check`, { credentials: "include" });
+      const data = await res.json();
+      if (data.isAdmin) {
+        loginBox.classList.add("hidden");
+        adminPanel.classList.remove("hidden");
+        loadAll();
+      }
+    });
+
     // ✅ 登入功能
     document.getElementById("login-btn").onclick = async () => {
       const username = document.getElementById("username").value.trim();
@@ -183,7 +175,7 @@ window.addEventListener("load", async () => {
 
     async function loadCandidates() {
       const session = sessionSelect.value;
-      const res = await fetch(`${apiBase}/api/candidates?session=${session}`);
+      const res = await fetch(`${apiBase}/api/candidates?session=${session}`, { credentials: "include" });
       if (!res.ok) return;
       const list = await res.json();
       document.getElementById("candidate-input").value = list.map(c => c.name).join("\n");
@@ -237,15 +229,15 @@ window.addEventListener("load", async () => {
       alert("✅ PDF 已產生");
     };
 
-    document.getElementById("download-pdf").onclick = () => {
-      const session = sessionSelect.value;
-      window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
-    };
-
     document.getElementById("reset-vote").onclick = async () => {
       if (!confirm("⚠️ 確定要清除所有投票紀錄？（投票碼保留）")) return;
       const session = sessionSelect.value;
-      await fetch(`${apiBase}/api/reset?session=${session}`, { method: "DELETE", credentials: "include" });
+      await fetch(`${apiBase}/api/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session }),
+        credentials: "include",
+      });
       alert("✅ 投票已重置");
       loadProgress();
     };
@@ -253,11 +245,9 @@ window.addEventListener("load", async () => {
     // ✅ 投票結果與進度
     document.getElementById("show-result").onclick = async () => {
       const session = sessionSelect.value;
-      const res = await fetch(`${apiBase}/api/result?session=${session}`, { credentials: "include" });
+      const res = await fetch(`${apiBase}/api/progress?session=${session}`, { credentials: "include" });
       const data = await res.json();
-      const div = document.getElementById("result");
-      if (!Array.isArray(data)) return alert("尚無投票結果");
-      div.innerHTML = data.map((r,i)=>`${i+1}. ${r.name} — ${r.votes} 票`).join("<br>");
+      document.getElementById("result").textContent = `已投票 ${data.total} 人`;
     };
 
     async function loadProgress() {
@@ -265,7 +255,7 @@ window.addEventListener("load", async () => {
       const res = await fetch(`${apiBase}/api/progress?session=${session}`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
-      document.getElementById("progress").textContent = `已投票 ${data.voted} / ${data.total}`;
+      document.getElementById("progress").textContent = `已投票 ${data.total}`;
     }
 
     sessionSelect.onchange = () => { loadAll(); };

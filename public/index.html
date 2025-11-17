@@ -131,7 +131,7 @@ async function validateCodeAndLoad(checkCode) {
     const res = await fetch(`/api/check?session=${session}&code=${checkCode}`);
     const data = await res.json();
 
-    if (!data.valid) {
+    if (!data.ok) {
       document.body.innerHTML = `
         <div style="text-align:center;margin-top:100px;">
           <h2>❌ 投票碼無效或已使用</h2>

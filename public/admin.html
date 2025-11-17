@@ -173,16 +173,16 @@
       await loadProgress();
     }
 
-    async function loadCandidates() {
-      const session = sessionSelect.value;
-      const res = await fetch(`${apiBase}/api/candidates?session=${session}`, { credentials: "include" });
-      if (!res.ok) return;
-      const list = await res.json();
-      document.getElementById("candidate-input").value = list.map(c => c.name).join("\n");
-      document.getElementById("candidate-list").innerHTML = list.length
-        ? list.map(c => `• ${c.name}`).join("<br>")
-        : "（尚無名單）";
-    }
+      async function loadCandidates() {
+        const session = sessionSelect.value;
+        const res = await fetch(`${apiBase}/api/candidates?session=${session}`, { credentials: "include" });
+        if (!res.ok) return;
+        const list = await res.json();
+        document.getElementById("candidate-input").value = list.map(c => c.name).join("\n");
+        // document.getElementById("candidate-list").innerHTML = list.length
+        //   ? list.map(c => `• ${c.name}`).join("<br>")
+        //   : "（尚無名單）";
+      }
 
     document.getElementById("save-candidates").onclick = async () => {
       const session = sessionSelect.value;

@@ -243,12 +243,42 @@
     };
 
     // ✅ 投票結果與進度
+    // document.getElementById("show-result").onclick = async () => {
+    //   const session = sessionSelect.value;
+    //   const res = await fetch(`${apiBase}/api/progress?session=${session}`, { credentials: "include" });
+    //   const data = await res.json();
+    //   document.getElementById("result").textContent = `已投票 ${data.total} 人`;
+    // };
     document.getElementById("show-result").onclick = async () => {
-      const session = sessionSelect.value;
-      const res = await fetch(`${apiBase}/api/progress?session=${session}`, { credentials: "include" });
-      const data = await res.json();
-      document.getElementById("result").textContent = `已投票 ${data.total} 人`;
-    };
+        const session = sessionSelect.value;
+        const res = await fetch(`${apiBase}/api/result?session=${session}`, { credentials: "include" });
+        if (!res.ok) {
+          alert("目前尚無投票結果");
+          return;
+        }
+        const data = await res.json();
+        const sorted = data.sort((a, b) => b.votes - a.votes);
+        const div = document.getElementById("result");
+
+        div.innerHTML = `
+    <h3>📊 ${session} 投票結果</h3>
+    <div style="display:grid;gap:8px;margin-top:10px;">
+      ${sorted.map((r, i) => `
+        <div style="
+          background:#e8f0fe;
+          border-left:6px solid #4285f4;
+          padding:8px 10px;
+          border-radius:6px;
+          font-size:16px;
+        ">
+          <b>${i + 1}. ${r.name}</b>
+          <span style="float:right;">${r.votes} 票</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+      };
+
 
     async function loadProgress() {
       const session = sessionSelect.value;

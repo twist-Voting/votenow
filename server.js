@@ -177,7 +177,8 @@ app.get("/api/export-pdf", async (req, res) => {
     const output = path.join(outDir, `${session}-${t.code}.pdf`);
     const stream = fs.createWriteStream(output);
     doc.pipe(stream);
-    doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
+    // doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
+    doc.font(path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf"));
 
     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
     doc.moveDown();

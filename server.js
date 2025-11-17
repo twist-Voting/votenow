@@ -167,6 +167,7 @@ app.post("/api/reset", (req, res) => {
 app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));
+  const fontPath = path.join(__dirname, "NotoSansTC-VariableFont_wght.ttf");
   if (!tokens.length) return res.status(400).send("尚未產生投票碼");
 
   const outDir = path.join(TOKEN_DIR, session);
@@ -178,7 +179,8 @@ app.get("/api/export-pdf", async (req, res) => {
     const stream = fs.createWriteStream(output);
     doc.pipe(stream);
     // doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
-    doc.font(path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf"));
+    // doc.font(path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf"));
+    if (fs.existsSync(fontPath)) doc.font(fontPath);
 
     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
     doc.moveDown();

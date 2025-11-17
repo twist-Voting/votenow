@@ -115,26 +115,32 @@
     <button onclick="generateTokens()">產生投票碼（100 組）</button>
     <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button>
     <button onclick="downloadPDF()">📦 下載 PDF 壓縮包</button>
-    <button onclick="loadTokens()">顯示投票碼清單</button>
-    <button onclick="loadResults()">📊 查看投票結果</button>
+    <button id="toggleTokens" onclick="toggleTokens()">📋 顯示投票碼清單</button>
+    <button id="toggleResults" onclick="toggleResults()">📊 查看投票結果</button>
 
-    <h3>目前投票碼：</h3>
-    <div id="tokens-list"></div>
+    <div id="tokensSection" style="display:none;">
+      <h3>目前投票碼：</h3>
+      <div id="tokens-list"></div>
+    </div>
 
-    <h3>投票結果：</h3>
-    <table id="resultTable"></table>
+    <div id="resultsSection" style="display:none;">
+      <h3>投票結果：</h3>
+      <table id="resultTable"></table>
+    </div>
   </div>
 
   <script>
     const overlay = document.getElementById("overlay");
+    const tokenBtn = document.getElementById("toggleTokens");
+    const resultBtn = document.getElementById("toggleResults");
+    const tokenSec = document.getElementById("tokensSection");
+    const resultSec = document.getElementById("resultsSection");
 
     function showOverlay(msg = "⏳ 處理中，請稍候...") {
       overlay.querySelector("div").textContent = msg;
       overlay.style.display = "flex";
     }
-    function hideOverlay() {
-      overlay.style.display = "none";
-    }
+    function hideOverlay() { overlay.style.display = "none"; }
 
     async function login() {
       const password = document.getElementById("password").value;
@@ -190,6 +196,28 @@
       setTimeout(hideOverlay, 3000);
     }
 
+    async function toggleTokens() {
+      if (tokenSec.style.display === "none") {
+        await loadTokens();
+        tokenSec.style.display = "block";
+        tokenBtn.textContent = "📋 隱藏投票碼清單";
+      } else {
+        tokenSec.style.display = "none";
+        tokenBtn.textContent = "📋 顯示投票碼清單";
+      }
+    }
+
+    async function toggleResults() {
+      if (resultSec.style.display === "none") {
+        await loadResults();
+        resultSec.style.display = "block";
+        resultBtn.textContent = "📊 隱藏投票結果";
+      } else {
+        resultSec.style.display = "none";
+        resultBtn.textContent = "📊 查看投票結果";
+      }
+    }
+
     async function loadTokens() {
       const session = document.getElementById("session").value;
       const res = await fetch(`/api/tokens?session=${session}`);
@@ -199,10 +227,7 @@
       tokens.forEach(t => {
         const card = document.createElement("div");
         card.className = "token-card" + (t.voted ? " used" : "");
-        card.innerHTML = `
-          <div><strong>${t.code}</strong></div>
-          <div>${t.voted ? "✅ 已投" : "⏳ 未投"}</div>
-        `;
+        card.innerHTML = `<div><strong>${t.code}</strong></div><div>${t.voted ? "✅ 已投" : "⏳ 未投"}</div>`;
         list.appendChild(card);
       });
     }
@@ -212,10 +237,8 @@
       const res = await fetch(`/api/result?session=${session}`);
       const data = await res.json();
       const table = document.getElementById("resultTable");
-      table.innerHTML = `
-        <tr><th>候選人</th><th>得票數</th></tr>
-        ${data.map(r => `<tr><td>${r.name}</td><td>${r.votes}</td></tr>`).join("")}
-      `;
+      table.innerHTML = `<tr><th>候選人</th><th>得票數</th></tr>` +
+        data.map(r => `<tr><td>${r.name}</td><td>${r.votes}</td></tr>`).join("");
     }
   </script>
 </body>

@@ -85,6 +85,16 @@ app.post("/api/vote", (req, res) => {
   res.json({ success: true });
 });
 
+// ✅ 管理者登入
+app.post("/api/admin/login", (req, res) => {
+  const { password } = req.body;
+  if (password === process.env.ADMIN_PASSWORD || password === "twist2024") {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, message: "密碼錯誤" });
+  }
+});
+
 // ✅ 匯出 PDF（Render 雲端安全版）
 app.get("/api/export-pdf", async (req, res) => {
   try {

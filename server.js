@@ -64,6 +64,15 @@ app.get("/api/download-pdf", async (req, res) => {
   archive.finalize();
 });
 
+app.get("/api/check", (req, res) => {
+  const { session, code } = req.query;
+  const tokens = loadJSON(getFile(session, "tokens"));
+  const votes = loadJSON(getFile(session, "votes"));
+  const token = tokens.find(t => t.code === code);
+  const alreadyVoted = votes.some(v => v.code === code);
+
+  res.json({ valid: !!token && !alreadyVoted });
+});
 
 // ✅ 管理者登入
 app.post("/api/admin/login", (req, res) => {

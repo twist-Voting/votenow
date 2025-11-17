@@ -126,7 +126,15 @@
     const sessionSelect = document.getElementById("session-select");
 
     const showLoading = (b) => loadingMask.style.display = b ? "flex" : "none";
-
+window.addEventListener("load", async () => {
+  const res = await fetch(`${apiBase}/api/admin/status`, { credentials: "include" });
+  const data = await res.json();
+  if (data.loggedIn) {
+    loginBox.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    loadAll();
+  }
+});
     // ✅ 登入功能
     document.getElementById("login-btn").onclick = async () => {
       const username = document.getElementById("username").value.trim();

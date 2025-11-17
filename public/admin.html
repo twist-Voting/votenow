@@ -104,6 +104,7 @@
       <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
       <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
       <button id="export-pdf">🧾 匯出 PDF</button>
+      <button id="download-pdf">🧾 下載PDF</button>
       <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
 
       <div id="progress" class="info-box">尚未載入投票進度</div>
@@ -228,6 +229,11 @@
       showLoading(false);
       alert("✅ PDF 已產生");
     };
+
+document.getElementById("download-pdf").onclick = () => {
+  const session = sessionSelect.value;
+  window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
+};
 
     document.getElementById("reset-vote").onclick = async () => {
       if (!confirm("⚠️ 確定要清除所有投票紀錄？（投票碼保留）")) return;

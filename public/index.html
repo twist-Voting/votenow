@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoteNow 投票系統</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      margin: 40px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #007bff;
+    }
+    #vote {
+      max-width: 500px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    button:hover:not(:disabled) {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .candidate {
+      display: block;
+      font-size: 18px;
+      margin: 8px 0;
+    }
+    .warning {
+      color: red;
+      font-size: 16px;
+      text-align: center;
+      margin: 15px 0;
+    }
+    .info {
+      text-align: center;
+      font-size: 18px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>VoteNow 投票系統</h1>
+
+  <div id="vote">
+    <h3 style="text-align:center;">請勾選候選人</h3>
+    <div id="selectionInfo" class="info"></div>
+    <form id="voteForm"></form>
+    <div class="warning">
+      ＊提醒：只能提交一次，提交後將無法修改，請再次確認後再按下提交。
+    </div>
+    <button id="submitVote">送出投票</button>
+    <p id="voteMsg" style="text-align:center;color:green;"></p>
+  </div>
+
+  <script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const session = urlParams.get("session") || "理事";
+  const code = urlParams.get("code") || "";
+
+  const candidateList = document.getElementById("voteForm");
+  const submitBtn = document.getElementById("submitVote");
+  const selectionInfo = document.getElementById("selectionInfo");
+
+  const maxVote = session.includes("監事") ? 5 : 15;
+  selectionInfo.textContent = `您已勾選 0/${maxVote} 位${session}`;
+
+  // ✅ 載入候選人清單
+  async function loadCandidates() {
+    try {
+      const res = await fetch(`/api/candidates?session=${session}`);
+      const list = await res.json();
+
+      if (!list.length) {
+        candidateList.innerHTML = "<p style='color:red;text-align:center;'>目前尚無候選人資料。</p>";
+        return;
+      }
+
+      candidateList.innerHTML = list.map(
+        (c) => `
+        <label class="candidate">
+          <input type="checkbox" name="vote" value="${c.id}" /> ${c.name}
+        </label>`
+      ).join("");
+
+      document.querySelectorAll("input[name='vote']").forEach((box) => {
+        box.addEventListener("change", updateSelectionCount);
+      });
+    } catch (err) {
+      candidateList.innerHTML = "<p style='color:red;text-align:center;'>⚠️ 無法載入候選人資料。</p>";
+    }
+  }
+
+  // ✅ 即時更新選取人數
+  function updateSelectionCount() {
+    const checkboxes = document.querySelectorAll("input[name='vote']");
+    const checked = Array.from(checkboxes).filter((c) => c.checked);
+    const count = checked.length;
+
+    if (count > maxVote) {
+      this.checked = false;
+      alert(`最多只能勾選 ${maxVote} 位${session}！`);
+      return;
+    }
+
+    selectionInfo.textContent = `您已勾選 ${count}/${maxVote} 位${session}`;
+  }
+
+  // ✅ 提交投票
+  submitBtn.addEventListener("click", async () => {
+    const checked = Array.from(document.querySelectorAll("input[name='vote']:checked")).map(
+      (c) => Number(c.value)
+    );
+
+    if (checked.length === 0) {
+      alert("請至少勾選 1 位候選人！");
+      return;
+    }
+
+    const confirmSubmit = confirm("⚠️ 您確定要提交嗎？提交後將無法修改。");
+    if (!confirmSubmit) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "⏳ 投票提交中...";
+    document.querySelectorAll("input[name='vote']").forEach((c) => (c.disabled = true));
+
+    const payload = { code, choices: checked, session };
+    try {
+      const res = await fetch("/api/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        submitBtn.textContent = "✅ 已提交";
+        document.getElementById("voteMsg").textContent = "投票完成，感謝您的參與！";
+        setTimeout(() => {
+          alert("✅ 投票完成，感謝您的參與！");
+        }, 500);
+      } else {
+        alert(result.error || "❌ 投票失敗，請確認投票碼或稍後再試。");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "送出投票";
+        document.querySelectorAll("input[name='vote']").forEach((c) => (c.disabled = false));
+      }
+    } catch (error) {
+      alert("❌ 系統錯誤，請稍後再試。");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "送出投票";
+      document.querySelectorAll("input[name='vote']").forEach((c) => (c.disabled = false));
+    }
+  });
+
+  // ✅ 初始化
+  loadCandidates();
+  </script>
+</body>
+</html>

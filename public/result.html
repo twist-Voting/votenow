@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>理監事開票結果</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #f8faef;
+      font-family: "Noto Sans TC", sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    button {
+      font-size: 16px;
+      padding: 8px 16px;
+      margin: 5px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background-color: #fff;
+      cursor: pointer;
+    }
+    button.active {
+      background-color: #4a90e2;
+      color: #fff;
+    }
+    .result-list {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    .winner {
+      color: #007700;
+      font-weight: bold;
+    }
+    .backup {
+      color: #cc7700;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>理監事開票結果統計</h1>
+  <div class="controls">
+    <button id="btn-director" class="active">理事開票</button>
+    <button id="btn-auditor">監事開票</button>
+    <button id="btn-refresh">重新載入</button>
+  </div>
+
+  <canvas id="chart" height="120"></canvas>
+
+  <div class="result-list" id="result-list"></div>
+
+  <script>
+    const ctx = document.getElementById("chart").getContext("2d");
+    let chart;
+
+    const loadResult = async (session) => {
+      const res = await fetch(`/api/result?session=${session}`);
+      const data = await res.json();
+
+      if (!data.length) {
+        document.getElementById("result-list").innerHTML = `<p>尚無投票資料。</p>`;
+        return;
+      }
+
+      const labels = data.map(r => r.name);
+      const votes = data.map(r => r.votes);
+
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "票數",
+            data: votes,
+            backgroundColor: "#4a90e2"
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { font: { size: 14 } } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      const listEl = document.getElementById("result-list");
+      listEl.innerHTML = data.map((r, i) => {
+        let cls = "";
+        if (i < 15) cls = "winner";
+        else if (i < 18) cls = "backup";
+        return `<div class="${cls}">${i + 1}. ${r.name} - ${r.votes}票 ${cls === "winner" ? "🥇當選" : cls === "backup" ? "🟡候補" : ""}</div>`;
+      }).join("");
+    };
+
+    const btnDir = document.getElementById("btn-director");
+    const btnAud = document.getElementById("btn-auditor");
+    const btnRef = document.getElementById("btn-refresh");
+
+    btnDir.addEventListener("click", () => {
+      btnDir.classList.add("active");
+      btnAud.classList.remove("active");
+      loadResult("理事");
+    });
+    btnAud.addEventListener("click", () => {
+      btnAud.classList.add("active");
+      btnDir.classList.remove("active");
+      loadResult("監事");
+    });
+    btnRef.addEventListener("click", () => {
+      const active = btnDir.classList.contains("active") ? "理事" : "監事";
+      loadResult(active);
+    });
+
+    loadResult("理事");
+  </script>
+</body>
+</html>

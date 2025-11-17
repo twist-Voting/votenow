@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>VoteNow 管理後台</title>
+  <style>
+    body { font-family: "Noto Sans TC", sans-serif; margin: 40px; background: #f9f9f9; }
+    h1 { text-align: center; }
+    section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin: 20px auto; max-width: 700px; }
+    input, textarea { width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 20px; margin-top: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    hr { margin: 30px 0; }
+  </style>
+</head>
+<body>
+  <h1>VoteNow 管理後台</h1>
+
+  <section id="login">
+    <h3>🔐 管理者登入</h3>
+    <input type="password" id="adminPwd" placeholder="請輸入管理密碼（admin123）" />
+    <button id="loginBtn">登入</button>
+    <p id="loginMsg" style="color:red;"></p>
+  </section>
+
+  <section id="panel" style="display:none;">
+    <h3>👥 新增候選人名單</h3>
+    <input type="text" id="sessionName" placeholder="請輸入場次名稱（例：理事）" />
+    <textarea id="candidateList" rows="6" placeholder="每行輸入一位候選人姓名"></textarea>
+    <button id="saveCandidatesBtn">儲存候選人名單</button>
+
+    <hr>
+    <h3>🧾 查看所有投票碼</h3>
+    <button id="showTokensBtn">顯示投票碼</button>
+    <pre id="tokenDisplay" style="background:#eee; padding:10px; border-radius:8px; max-height:200px; overflow:auto;"></pre>
+
+    <hr>
+    <h3>📊 開票統計</h3>
+    <button id="openVotesBtn">開票</button>
+    <pre id="resultDisplay" style="background:#eee; padding:10px; border-radius:8px; max-height:200px; overflow:auto;"></pre>
+
+    <hr>
+    <h3>📦 一鍵產生 QR code PDF</h3>
+    <label>場次名稱：</label>
+    <input type="text" id="pdfSession" placeholder="例如：理事" />
+    <label>數量：</label>
+    <input type="number" id="pdfCount" value="100" min="1" max="500" />
+    <br><br>
+    <button id="generatePdfBtn">🚀 一鍵產生 QR code PDF</button>
+    <p id="pdfMsg" style="color:green;"></p>
+  </section>
+
+  <script>
+    // 🔑 管理者登入
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const pwd = document.getElementById("adminPwd").value;
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd })
+      });
+      if (res.ok) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("panel").style.display = "block";
+      } else {
+        document.getElementById("loginMsg").innerText = "❌ 密碼錯誤";
+      }
+    });
+
+    // 💾 儲存候選人
+    document.getElementById("saveCandidatesBtn").addEventListener("click", async () => {
+      const session = document.getElementById("sessionName").value.trim();
+      const names = document.getElementById("candidateList").value.trim().split("\n").filter(n => n);
+      if (!session || names.length === 0) return alert("請輸入場次與候選人名單");
+
+      const res = await fetch("/api/candidates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session, names })
+      });
+      const data = await res.json();
+      if (data.success) alert(`${session} 候選人名單已更新 ✅`);
+    });
+
+    // 🧾 顯示投票碼
+    document.getElementById("showTokensBtn").addEventListener("click", async () => {
+      const session = prompt("請輸入場次名稱（例：理事）");
+      const res = await fetch(`/api/tokens?session=${session}`);
+      const data = await res.json();
+      document.getElementById("tokenDisplay").innerText = JSON.stringify(data, null, 2);
+    });
+
+    // 📊 開票結果
+    document.getElementById("openVotesBtn").addEventListener("click", async () => {
+      const session = prompt("請輸入場次名稱（例：理事）");
+      const res = await fetch(`/api/result?session=${session}`);
+      const data = await res.json();
+      const text = data.map((r, i) => `${i + 1}. ${r.name} - ${r.votes} 票`).join("\n");
+      document.getElementById("resultDisplay").innerText = text || "尚無資料";
+    });
+
+    // 📦 一鍵產生 QR code PDF
+    document.getElementById("generatePdfBtn").addEventListener("click", async () => {
+      const session = document.getElementById("pdfSession").value.trim();
+      const count = document.getElementById("pdfCount").value;
+      if (!session) return alert("請輸入場次名稱");
+
+      document.getElementById("pdfMsg").innerText = "⏳ 產生中...";
+      try {
+        await fetch(`/api/generate-tokens?session=${session}&count=${count}`);
+        const pdfRes = await fetch(`/api/export-pdf?session=${session}`);
+        const msg = await pdfRes.text();
+        document.getElementById("pdfMsg").innerText = `✅ ${msg}`;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("pdfMsg").innerText = "❌ 發生錯誤";
+      }
+    });
+  </script>
+</body>
+</html>
+

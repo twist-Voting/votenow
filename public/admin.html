@@ -20,7 +20,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       padding: 20px;
-      max-width: 800px;
+      max-width: 900px;
       margin: 20px auto;
     }
     label {
@@ -42,9 +42,7 @@
       cursor: pointer;
       margin-top: 10px;
     }
-    button:hover {
-      background: #0056b3;
-    }
+    button:hover { background: #0056b3; }
     #tokens-list {
       display: flex;
       flex-wrap: wrap;
@@ -64,11 +62,39 @@
       border-left: 5px solid #dc3545;
       opacity: 0.6;
     }
+    #resultTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    #resultTable th, #resultTable td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 22px;
+    }
+    #overlay div {
+      background: rgba(0,0,0,0.7);
+      padding: 30px 50px;
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
+  <div id="overlay"><div>⏳ 處理中，請稍候...</div></div>
   <h1>VoteNow 管理介面</h1>
-  <div class="card">
+
+  <div class="card" id="loginCard">
     <label>管理者密碼：</label>
     <input type="password" id="password" placeholder="請輸入管理密碼" />
     <button onclick="login()">登入</button>
@@ -87,23 +113,28 @@
 
     <button onclick="updateCandidates()">更新候選人名單</button>
     <button onclick="generateTokens()">產生投票碼（100 組）</button>
-    <!-- <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button> -->
-     <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button>
-<button onclick="downloadPDF()">📦 下載 PDF 壓縮包</button>
+    <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button>
+    <button onclick="downloadPDF()">📦 下載 PDF 壓縮包</button>
     <button onclick="loadTokens()">顯示投票碼清單</button>
+    <button onclick="loadResults()">📊 查看投票結果</button>
 
     <h3>目前投票碼：</h3>
     <div id="tokens-list"></div>
+
+    <h3>投票結果：</h3>
+    <table id="resultTable"></table>
   </div>
 
   <script>
-    async function downloadPDF() {
-  const session = document.getElementById("session").value;
-  const link = document.createElement("a");
-  link.href = `/api/download-pdf?session=${session}`;
-  link.download = `${session}_pdf_tokens.zip`;
-  link.click();
-}
+    const overlay = document.getElementById("overlay");
+
+    function showOverlay(msg = "⏳ 處理中，請稍候...") {
+      overlay.querySelector("div").textContent = msg;
+      overlay.style.display = "flex";
+    }
+    function hideOverlay() {
+      overlay.style.display = "none";
+    }
 
     async function login() {
       const password = document.getElementById("password").value;
@@ -114,7 +145,7 @@
       });
 
       if (res.ok) {
-        document.querySelector(".card").style.display = "none";
+        document.getElementById("loginCard").style.display = "none";
         document.getElementById("adminPanel").style.display = "block";
       } else {
         document.getElementById("loginMsg").textContent = "密碼錯誤";
@@ -135,14 +166,28 @@
 
     async function generateTokens() {
       const session = document.getElementById("session").value;
+      showOverlay("🔐 正在產生投票碼...");
       await fetch(`/api/generate-tokens?session=${session}&count=100`);
+      hideOverlay();
       alert(`${session} 投票碼已產生`);
     }
 
     async function exportPDF() {
       const session = document.getElementById("session").value;
+      showOverlay("🧾 正在匯出 PDF...");
       await fetch(`/api/export-pdf?session=${session}`);
+      hideOverlay();
       alert(`${session} PDF 已匯出`);
+    }
+
+    async function downloadPDF() {
+      const session = document.getElementById("session").value;
+      showOverlay("📦 準備下載 PDF 壓縮包...");
+      const link = document.createElement("a");
+      link.href = `/api/download-pdf?session=${session}`;
+      link.download = `${session}_pdf_tokens.zip`;
+      link.click();
+      setTimeout(hideOverlay, 3000);
     }
 
     async function loadTokens() {
@@ -160,6 +205,17 @@
         `;
         list.appendChild(card);
       });
+    }
+
+    async function loadResults() {
+      const session = document.getElementById("session").value;
+      const res = await fetch(`/api/result?session=${session}`);
+      const data = await res.json();
+      const table = document.getElementById("resultTable");
+      table.innerHTML = `
+        <tr><th>候選人</th><th>得票數</th></tr>
+        ${data.map(r => `<tr><td>${r.name}</td><td>${r.votes}</td></tr>`).join("")}
+      `;
     }
   </script>
 </body>

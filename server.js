@@ -7,6 +7,10 @@ import QRCode from "qrcode";
 import cors from "cors";
 import dotenv from "dotenv";
 import archiver from "archiver";
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -165,14 +169,17 @@ app.get("/api/result", (req, res) => {
   res.json(results);
 });
 
-// ✅ 匯出 PDF（含 QR code）
+// 匯出 PDF
 app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
-  const tokens = loadJSON(getFile(session, "tokens"));
+  const file = getFile(session, "tokens");
+  const tokens = loadJSON(file);
   if (!tokens.length) return res.status(400).send("尚未產生投票碼");
 
   const outDir = path.join(TOKEN_DIR, session);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+const fontPath = path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf");
 
   for (const t of tokens) {
     const doc = new PDFDocument();
@@ -180,31 +187,36 @@ app.get("/api/export-pdf", async (req, res) => {
     const stream = fs.createWriteStream(output);
     doc.pipe(stream);
 
-    // ✅ 字型（確保雲端也能顯示中文）
-    doc.font("Helvetica-Bold");
+    // ✅ 使用專案內嵌中文字型
+    // doc.font(fontPath);
+if (!fs.existsSync(fontPath)) {
+  console.warn("⚠️ 找不到 NotoSansTC 字型，改用內建 Helvetica");
+  doc.font("Helvetica");
+} else {
+  doc.font(fontPath);
+}
 
     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
     doc.moveDown();
     doc.fontSize(14).text("投票說明：");
-
     if (session.includes("監事")) {
       doc.text("監事選舉請勾選 5 人，票數最高之 5 人當選，1 人候補。");
     } else {
       doc.text("理事選舉請勾選 15 人，票數最高之 15 人當選，3 人候補。");
     }
-
     doc.moveDown();
+
     const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
     const qrData = await QRCode.toDataURL(qrUrl);
     doc.image(Buffer.from(qrData.split(",")[1], "base64"), { fit: [150, 150], align: "center" });
     doc.moveDown();
     doc.fontSize(16).text(`投票碼：${t.code}`, { align: "center" });
-
     doc.end();
+
     await new Promise((resolve) => stream.on("finish", resolve));
   }
 
-  res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF，儲存在 /pdf_tokens/${session}/`);
+  res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF`);
 });
 
 // ✅ 啟動伺服器

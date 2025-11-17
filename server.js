@@ -134,6 +134,24 @@ app.post("/api/vote", (req, res) => {
   res.json({ success: true });
 });
 
+// ✅ 統計結果
+app.get("/api/result", requireAdmin, (req, res) => {
+  const { session } = req.query;
+  const candidates = loadJSON(getFile(session, "candidates"));
+  const votes = loadJSON(getFile(session, "votes"));
+  const tally = Object.fromEntries(candidates.map(c => [c.name, 0]));
+
+  votes.forEach(v => v.choices.forEach(name => {
+    if (tally[name] !== undefined) tally[name]++;
+  }));
+
+  const result = Object.entries(tally)
+    .map(([name, votes]) => ({ name, votes }))
+    .sort((a,b) => b.votes - a.votes);
+
+  res.json(result);
+});
+
 // === 檢查投票碼有效性 ===
 app.get("/api/check", (req, res) => {
   const { code, session } = req.query;

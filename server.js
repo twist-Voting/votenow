@@ -135,7 +135,7 @@ app.post("/api/vote", (req, res) => {
 });
 
 // ✅ 統計結果
-app.get("/api/result", requireAdmin, (req, res) => {
+app.get("/api/result", (req, res) => {
   const { session } = req.query;
   const candidates = loadJSON(getFile(session, "candidates"));
   const votes = loadJSON(getFile(session, "votes"));
@@ -150,6 +150,34 @@ app.get("/api/result", requireAdmin, (req, res) => {
     .sort((a,b) => b.votes - a.votes);
 
   res.json(result);
+});
+// ✅ 匯出 PDF 壓縮包下載
+import archiver from "archiver";
+
+app.get("/api/download-pdf", async (req, res) => {
+  const { session } = req.query;
+  if (!session) return res.status(400).send("缺少 session 參數");
+
+  const outDir = path.join(TOKEN_DIR, session);
+  if (!fs.existsSync(outDir)) return res.status(404).send("找不到 PDF 目錄");
+
+  const zipName = `${session}-PDFs.zip`;
+  const zipPath = path.join(outDir, zipName);
+
+  // 建立 zip 壓縮包
+  const output = fs.createWriteStream(zipPath);
+  const archive = archiver("zip", { zlib: { level: 9 } });
+
+  archive.pipe(output);
+  archive.directory(outDir, false);
+  await archive.finalize();
+
+  output.on("close", () => {
+    res.download(zipPath, zipName, (err) => {
+      if (err) console.error("下載錯誤:", err);
+      fs.unlink(zipPath, () => {}); // 自動刪除暫存 zip
+    });
+  });
 });
 
 app.get("/api/check", (req, res) => {

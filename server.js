@@ -80,7 +80,7 @@ function requireAdmin(req, res, next) {
 }
 
 // === 設定候選人名單 ===
-app.post("/api/candidates", requireAdmin, (req, res) => {
+app.post("/api/candidates", (req, res) => {
   const { session, names } = req.body;
   const file = getFile(session, "candidates");
   saveJSON(file, names.map((n, i) => ({ id: i + 1, name: n.trim() })));
@@ -95,7 +95,7 @@ app.get("/api/candidates", (req, res) => {
 });
 
 // === 產生投票碼 ===
-app.get("/api/generate-tokens", requireAdmin, (req, res) => {
+app.get("/api/generate-tokens", (req, res) => {
   const { session, count } = req.query;
   const tokenFile = getFile(session, "tokens");
   const num = Number(count) || 50;
@@ -108,7 +108,7 @@ app.get("/api/generate-tokens", requireAdmin, (req, res) => {
 });
 
 // === 取得投票碼清單 ===
-app.get("/api/tokens", requireAdmin, (req, res) => {
+app.get("/api/tokens", (req, res) => {
   const { session } = req.query;
   const file = getFile(session, "tokens");
   res.json(loadJSON(file));
@@ -145,14 +145,14 @@ app.get("/api/check", (req, res) => {
 });
 
 // === 查看投票進度 ===
-app.get("/api/progress", requireAdmin, (req, res) => {
+app.get("/api/progress", (req, res) => {
   const { session } = req.query;
   const votes = loadJSON(getFile(session, "votes"));
   res.json({ total: votes.length });
 });
 
 // === 重新投票（不刪投票碼） ===
-app.post("/api/reset", requireAdmin, (req, res) => {
+app.post("/api/reset", (req, res) => {
   const { session } = req.body;
   const tokenFile = getFile(session, "tokens");
   const voteFile = getFile(session, "votes");
@@ -164,7 +164,7 @@ app.post("/api/reset", requireAdmin, (req, res) => {
 });
 
 // === 匯出 PDF（中文 + QR code） ===
-app.get("/api/export-pdf", requireAdmin, async (req, res) => {
+app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));
   if (!tokens.length) return res.status(400).send("尚未產生投票碼");

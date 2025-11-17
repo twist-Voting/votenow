@@ -137,19 +137,29 @@ app.post("/api/vote", (req, res) => {
 // ✅ 統計結果
 app.get("/api/result", (req, res) => {
   const { session } = req.query;
-  const candidates = loadJSON(getFile(session, "candidates"));
-  const votes = loadJSON(getFile(session, "votes"));
-  const tally = Object.fromEntries(candidates.map(c => [c.name, 0]));
+  const candidateFile = path.join(DATA_DIR, `${session}-candidates.json`);
+  const voteFile = path.join(DATA_DIR, `${session}-votes.json`);
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
 
-  votes.forEach(v => v.choices.forEach(name => {
-    if (tally[name] !== undefined) tally[name]++;
+  if (!fs.existsSync(candidateFile)) return res.json({ total: 0, voted: 0, counts: [] });
+
+  const candidates = JSON.parse(fs.readFileSync(candidateFile, "utf8"));
+  const votes = fs.existsSync(voteFile) ? JSON.parse(fs.readFileSync(voteFile, "utf8")) : [];
+  const tokens = fs.existsSync(tokenFile) ? JSON.parse(fs.readFileSync(tokenFile, "utf8")) : [];
+
+  const countMap = {};
+  votes.forEach((v) => v.choices.forEach((id) => (countMap[id] = (countMap[id] || 0) + 1)));
+
+  const counts = candidates.map((c) => ({
+    name: c.name,
+    votes: countMap[c.id] || 0,
   }));
 
-  const result = Object.entries(tally)
-    .map(([name, votes]) => ({ name, votes }))
-    .sort((a,b) => b.votes - a.votes);
-
-  res.json(result);
+  res.json({
+    total: tokens.length,
+    voted: tokens.filter((t) => t.voted).length,
+    counts,
+  });
 });
 // ✅ 匯出 PDF 壓縮包下載
 import archiver from "archiver";
@@ -217,7 +227,7 @@ app.post("/api/reset", (req, res) => {
 app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));
-  const fontPath = path.join(__dirname, "NotoSansTC-VariableFont_wght.ttf");
+  const fontPath = path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf");
   if (!tokens.length) return res.status(400).send("尚未產生投票碼");
 
   const outDir = path.join(TOKEN_DIR, session);

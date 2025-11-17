@@ -38,8 +38,7 @@ function saveJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-
-// ✅ 一鍵下載 PDF 壓縮包
+// ✅ 一鍵下載 PDF 壓縮包（支援中文檔名）
 app.get("/api/download-pdf", async (req, res) => {
   const { session } = req.query;
   const dir = path.join(TOKEN_DIR, session);
@@ -49,7 +48,10 @@ app.get("/api/download-pdf", async (req, res) => {
   }
 
   const zipName = `${session}_pdf_tokens.zip`;
-  res.setHeader("Content-Disposition", `attachment; filename=${zipName}`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${encodeURIComponent(zipName)}"; filename*=UTF-8''${encodeURIComponent(zipName)}`
+  );
   res.setHeader("Content-Type", "application/zip");
 
   const archive = archiver("zip", { zlib: { level: 9 } });
@@ -57,6 +59,7 @@ app.get("/api/download-pdf", async (req, res) => {
   archive.directory(dir, false);
   archive.finalize();
 });
+
 
 // ✅ 管理者登入
 app.post("/api/admin/login", (req, res) => {

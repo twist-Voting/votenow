@@ -63,6 +63,20 @@ app.get("/api/check", (req, res) => {
   return res.json({ valid: true });
 });
 
+// ✅ 顯示投票進度（已投票人數）
+app.get("/api/progress", (req, res) => {
+  const { session } = req.query;
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+  if (!fs.existsSync(tokenFile)) {
+    return res.json({ total: 0, voted: 0 });
+  }
+
+  const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+  const total = tokens.length;
+  const voted = tokens.filter((t) => t.voted).length;
+
+  res.json({ total, voted });
+});
 
 // 📋 載入候選人
 app.get("/api/candidates", (req, res) => {

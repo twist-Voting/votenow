@@ -7,271 +7,207 @@
   <style>
     body {
       font-family: "Noto Sans TC", sans-serif;
-      background: linear-gradient(180deg, #f4f7fb 0%, #e8ecf3 100%);
+      background-color: #f4f6f9;
       margin: 0;
-      padding: 0;
+      padding: 20px;
+      color: #333;
     }
-    header {
-      background: #007bff;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 22px;
-      font-weight: 600;
-    }
-    main {
-      padding: 30px;
-      max-width: 900px;
-      margin: auto;
-    }
-    .card {
+    h1 { text-align: center; margin-bottom: 20px; }
+    section {
       background: white;
       border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      padding: 25px;
-      margin-bottom: 25px;
-    }
-    h3 {
-      color: #2c3e50;
-      border-left: 5px solid #007bff;
-      padding-left: 10px;
-    }
-    select, input[type="password"], textarea {
-      padding: 10px;
-      width: 100%;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
     button {
-      background: #007bff;
-      color: white;
+      padding: 10px 16px;
+      margin: 5px;
       border: none;
       border-radius: 6px;
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px 0;
       cursor: pointer;
-      transition: background 0.3s;
+      font-size: 15px;
+      background-color: #007bff;
+      color: white;
     }
-    button:hover { background: #0056b3; }
-    .danger {
-      background: #dc3545;
+    button:hover { background-color: #0056b3; }
+    select, textarea, input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
     }
-    .danger:hover {
-      background: #b02a37;
-    }
-    #loginSection { text-align: center; margin-top: 80px; }
-    #dashboard { display: none; }
-    .stats {
-      font-size: 18px;
+    #token-list, #candidate-list { margin-top: 10px; font-family: monospace; }
+    .hidden { display: none; }
+    .info-box {
+      font-weight: bold;
+      background: #e8f0fe;
+      border-left: 6px solid #4285f4;
+      padding: 10px;
       margin: 10px 0;
-      color: #444;
+      border-radius: 4px;
     }
     #loading-mask {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,0.85);
+      inset: 0;
+      background: rgba(255,255,255,0.8);
       display: none;
-      justify-content: center;
       align-items: center;
-      font-size: 22px;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
       color: #007bff;
       z-index: 1000;
-    }
-    .token-item {
-      display: flex;
-      justify-content: space-between;
-      border-bottom: 1px solid #eee;
-      padding: 5px 0;
-      font-family: monospace;
     }
   </style>
 </head>
 <body>
-  <header>VoteNow 多場版 管理後台</header>
+  <div id="loading-mask">處理中，請稍候...</div>
 
-  <div id="loading-mask">⏳ 處理中，請稍候...</div>
+  <h1>VoteNow 管理後台</h1>
 
-  <main id="loginSection">
-    <div class="card" style="max-width:400px; margin:auto;">
-      <h3>管理員登入</h3>
-      <input type="password" id="adminPass" placeholder="請輸入管理密碼">
-      <button id="loginBtn">登入</button>
-      <p id="loginMsg" style="color:red;"></p>
-    </div>
-  </main>
+  <section>
+    <label>選擇場次：</label>
+    <select id="session-select">
+      <option value="理事">理事</option>
+      <option value="監事">監事</option>
+    </select>
+  </section>
 
-  <main id="dashboard">
-    <div class="card">
-      <h3>投票場次設定</h3>
-      <select id="sessionSelect">
-        <option value="理事">理事</option>
-        <option value="監事">監事</option>
-      </select>
-    </div>
+  <section>
+    <h2>候選人名單</h2>
+    <textarea id="candidate-input" rows="5" placeholder="每行輸入一位候選人姓名"></textarea>
+    <button id="save-candidates">💾 儲存名單</button>
+    <div id="candidate-list"></div>
+  </section>
 
-    <div class="card">
-      <h3>投票狀況</h3>
-      <div id="voteStats" class="stats">載入中...</div>
-      <button id="refreshStats">🔄 更新投票數</button>
-    </div>
+  <section>
+    <h2>投票碼管理</h2>
+    <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
+    <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
+    <button id="export-pdf">🧾 匯出 PDF（含 QR Code）</button>
+    <button id="download-pdf">⬇️ 下載 PDF 壓縮包</button>
+    <button id="reset-vote" style="background:#d9534f;">🧨 重新投票（保留投票碼）</button>
 
-    <div class="card">
-      <h3>候選人名單</h3>
-      <textarea id="candidateInput" rows="6" placeholder="請每行輸入一位候選人姓名"></textarea>
-      <button id="updateCandidates">更新名單</button>
-    </div>
+    <div id="progress" class="info-box">尚未載入投票進度</div>
+    <div id="token-list" class="hidden"></div>
+  </section>
 
-    <div class="card">
-      <h3>投票碼管理</h3>
-      <button id="generateTokens">產生 100 組投票碼</button>
-      <button id="toggleTokens">📋 顯示／隱藏投票碼清單</button>
-      <button id="exportPDF">匯出投票 QR PDF</button>
-      <button id="downloadPDF">📥 下載 PDF 壓縮檔</button>
-      <button class="danger" id="resetVoting">🧨 重新投票（清除所有投票紀錄）</button>
-      <div id="tokenList" class="stats" style="display:none;"></div>
-    </div>
-
-    <div class="card">
-      <h3>投票結果</h3>
-      <button id="toggleResult">📊 顯示／隱藏投票結果</button>
-      <div id="resultList" style="display:none;" class="stats"></div>
-    </div>
-  </main>
+  <section>
+    <h2>投票結果</h2>
+    <button id="show-result">📊 顯示投票結果</button>
+    <div id="result"></div>
+  </section>
 
   <script>
-    const adminPass = "twist2025";
-    const mask = document.getElementById("loading-mask");
+    const apiBase = "https://votenow-bn56.onrender.com";
+    const sessionSelect = document.getElementById("session-select");
+    const candidateInput = document.getElementById("candidate-input");
+    const candidateList = document.getElementById("candidate-list");
+    const tokenList = document.getElementById("token-list");
+    const resultDiv = document.getElementById("result");
+    const progressDiv = document.getElementById("progress");
+    const loadingMask = document.getElementById("loading-mask");
 
-    const loading = (show) => mask.style.display = show ? "flex" : "none";
-
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      if (document.getElementById("adminPass").value === adminPass) {
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-        await loadVoteStats();
-        await loadCandidates();
-      } else {
-        document.getElementById("loginMsg").textContent = "密碼錯誤！";
-      }
-    });
-
-    async function loadVoteStats() {
-      const session = document.getElementById("sessionSelect").value;
-      try {
-        const res = await fetch(`/api/progress?session=${session}`);
-        const data = await res.json();
-        document.getElementById("voteStats").innerHTML = `🧾 已投票人數：<b>${data.voted}</b>`;
-      } catch {
-        document.getElementById("voteStats").textContent = "無法取得統計資料";
-      }
-    }
+    const showLoading = (show) => loadingMask.style.display = show ? "flex" : "none";
 
     async function loadCandidates() {
-      const session = document.getElementById("sessionSelect").value;
-      try {
-        const res = await fetch(`/api/candidates?session=${session}`);
-        const list = await res.json();
-        document.getElementById("candidateInput").value = list.map(c => c.name).join("\n");
-      } catch {
-        document.getElementById("candidateInput").value = "";
-      }
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/candidates?session=${session}`);
+      if (!res.ok) return;
+      const list = await res.json();
+      candidateInput.value = list.map(c => c.name).join("\\n");
+      candidateList.innerHTML = list.length
+        ? list.map(c => `• ${c.name}`).join("<br>")
+        : "（尚無名單）";
     }
 
-    document.getElementById("updateCandidates").addEventListener("click", async () => {
-      const session = document.getElementById("sessionSelect").value;
-      const names = document.getElementById("candidateInput").value.trim().split("\n").filter(x=>x);
-      if (!names.length) return alert("請至少輸入一位候選人！");
-      loading(true);
-      await fetch("/api/candidates", {
+    document.getElementById("save-candidates").onclick = async () => {
+      const session = sessionSelect.value;
+      const names = candidateInput.value.split("\\n").map(s => s.trim()).filter(Boolean);
+      await fetch(`${apiBase}/api/candidates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session, names }),
       });
-      loading(false);
-      alert("✅ 候選人名單已更新");
-    });
+      alert("✅ 名單已更新");
+      loadCandidates();
+    };
 
-    document.getElementById("sessionSelect").addEventListener("change", async () => {
-      await loadVoteStats();
-      await loadCandidates();
-      document.getElementById("tokenList").style.display = "none";
-    });
-
-    document.getElementById("generateTokens").addEventListener("click", async () => {
-      const session = document.getElementById("sessionSelect").value;
-      loading(true);
-      await fetch(`/api/generate-tokens?session=${session}&count=100`);
-      loading(false);
+    document.getElementById("generate-tokens").onclick = async () => {
+      showLoading(true);
+      const session = sessionSelect.value;
+      await fetch(`${apiBase}/api/generate-tokens?session=${session}&count=100`);
+      showLoading(false);
       alert("✅ 已產生 100 組投票碼");
-      loadVoteStats();
-    });
+    };
 
-    // 📋 顯示／隱藏投票碼清單
-    document.getElementById("toggleTokens").addEventListener("click", async () => {
-      const tokenDiv = document.getElementById("tokenList");
-      if (tokenDiv.style.display === "none") {
-        const session = document.getElementById("sessionSelect").value;
-        loading(true);
-        const res = await fetch(`/api/tokens?session=${session}`);
-        const list = await res.json();
-        loading(false);
-        tokenDiv.innerHTML = list.map(t =>
-          `<div class="token-item"><span>${t.code}</span><span>${t.voted ? "✅" : "❌"}</span></div>`
-        ).join("");
-        tokenDiv.style.display = "block";
-      } else {
-        tokenDiv.style.display = "none";
-      }
-    });
+    let tokensVisible = false;
+    document.getElementById("toggle-tokens").onclick = async () => {
+      tokensVisible = !tokensVisible;
+      if (!tokensVisible) { tokenList.classList.add("hidden"); return; }
 
-    document.getElementById("exportPDF").addEventListener("click", async () => {
-      const session = document.getElementById("sessionSelect").value;
-      loading(true);
-      await fetch(`/api/export-pdf?session=${session}`);
-      loading(false);
-      alert("✅ PDF 產生完成！");
-    });
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/tokens?session=${session}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) { alert("目前尚未產生投票碼"); return; }
 
-    document.getElementById("downloadPDF").addEventListener("click", () => {
-      const session = document.getElementById("sessionSelect").value;
-      window.open(`/api/download-pdf?session=${session}`, "_blank");
-    });
+      tokenList.innerHTML = data.map((t, i) =>
+        `<div>${i + 1}. ${t.code} ${t.voted ? "✅" : "❌"}</div>`
+      ).join("");
+      tokenList.classList.remove("hidden");
+    };
 
-    // 🧨 重新投票（清除投票碼與投票紀錄）
-    document.getElementById("resetVoting").addEventListener("click", async () => {
-      const session = document.getElementById("sessionSelect").value;
-      if (!confirm(`⚠️ 確定要重新開始「${session}」投票嗎？\n此動作會刪除所有投票碼與投票紀錄，但保留候選人名單。`)) return;
-      loading(true);
-      const res = await fetch(`/api/reset?session=${session}`, { method: "DELETE" });
-      loading(false);
-      if (res.ok) {
-        alert(`🧨「${session}」投票已重置成功！`);
-        loadVoteStats();
-      } else {
-        alert("❌ 重置失敗，請檢查伺服器端 log。");
-      }
-    });
+    document.getElementById("export-pdf").onclick = async () => {
+      showLoading(true);
+      const session = sessionSelect.value;
+      await fetch(`${apiBase}/api/export-pdf?session=${session}`);
+      showLoading(false);
+      alert("✅ PDF 已產生（請在伺服器端查看）");
+    };
 
-    document.getElementById("toggleResult").addEventListener("click", async () => {
-      const resultDiv = document.getElementById("resultList");
-      if (resultDiv.style.display === "none") {
-        loading(true);
-        const session = document.getElementById("sessionSelect").value;
-        const res = await fetch(`/api/result?session=${session}`);
-        const data = await res.json();
-        loading(false);
-        resultDiv.innerHTML = data.map((c, i) =>
-          `<div>${i+1}. ${c.name} - <b>${c.votes}</b> 票</div>`).join("");
-        resultDiv.style.display = "block";
-      } else {
-        resultDiv.style.display = "none";
-      }
-    });
+    document.getElementById("download-pdf").onclick = () => {
+      const session = sessionSelect.value;
+      window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
+    };
 
-    setInterval(loadVoteStats, 10000);
+    document.getElementById("reset-vote").onclick = async () => {
+      if (!confirm("⚠️ 確定要清除投票紀錄？（投票碼將保留）")) return;
+      showLoading(true);
+      const session = sessionSelect.value;
+      await fetch(`${apiBase}/api/reset?session=${session}`, { method: "DELETE" });
+      showLoading(false);
+      alert("✅ 投票已重置");
+    };
+
+    document.getElementById("show-result").onclick = async () => {
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/result?session=${session}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) { alert("尚無投票結果"); return; }
+      resultDiv.innerHTML = data.map((r, i) =>
+        `<div>${i + 1}. ${r.name} — ${r.votes} 票</div>`
+      ).join("");
+    };
+
+    async function loadProgress() {
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/progress?session=${session}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      progressDiv.textContent = `已投票 ${data.voted} / ${data.total}`;
+    }
+
+    sessionSelect.onchange = () => {
+      loadCandidates();
+      loadProgress();
+    };
+
+    loadCandidates();
+    loadProgress();
+    setInterval(loadProgress, 5000);
   </script>
 </body>
 </html>

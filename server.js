@@ -40,6 +40,30 @@ app.post("/api/admin/login", (req, res) => {
   }
 });
 
+// ✅ 驗證投票碼是否有效（用於投票頁初始化）
+app.get("/api/check", (req, res) => {
+  const { session, code } = req.query;
+  const tokenFile = path.join(DATA_DIR, `${session}-tokens.json`);
+
+  if (!fs.existsSync(tokenFile)) {
+    return res.status(404).json({ valid: false, message: "投票碼檔案不存在" });
+  }
+
+  const tokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+  const token = tokens.find((t) => t.code === code);
+
+  if (!token) {
+    return res.json({ valid: false, message: "無效的投票碼" });
+  }
+
+  if (token.voted) {
+    return res.json({ valid: false, message: "此投票碼已投票" });
+  }
+
+  return res.json({ valid: true });
+});
+
+
 // 📋 載入候選人
 app.get("/api/candidates", (req, res) => {
   const { session } = req.query;

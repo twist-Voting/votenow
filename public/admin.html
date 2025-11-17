@@ -18,7 +18,6 @@
       text-align: center;
       font-size: 22px;
       font-weight: 600;
-      letter-spacing: 1px;
     }
     main {
       padding: 30px;
@@ -31,17 +30,11 @@
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       padding: 25px;
       margin-bottom: 25px;
-      animation: fadeIn 0.4s ease-in;
     }
     h3 {
       color: #2c3e50;
       border-left: 5px solid #007bff;
       padding-left: 10px;
-    }
-    label {
-      display: inline-block;
-      margin-bottom: 10px;
-      font-weight: 500;
     }
     select, input[type="password"], textarea {
       padding: 10px;
@@ -81,9 +74,12 @@
       color: #007bff;
       z-index: 1000;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .token-item {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+      padding: 5px 0;
+      font-family: monospace;
     }
   </style>
 </head>
@@ -104,7 +100,6 @@
   <main id="dashboard">
     <div class="card">
       <h3>投票場次設定</h3>
-      <label>請選擇場次：</label>
       <select id="sessionSelect">
         <option value="理事">理事</option>
         <option value="監事">監事</option>
@@ -126,6 +121,7 @@
     <div class="card">
       <h3>投票碼管理</h3>
       <button id="generateTokens">產生 100 組投票碼</button>
+      <button id="toggleTokens">📋 顯示／隱藏投票碼清單</button>
       <button id="exportPDF">匯出投票 QR PDF</button>
       <button id="downloadPDF">📥 下載 PDF 壓縮檔</button>
       <div id="tokenList" class="stats" style="display:none;"></div>
@@ -139,25 +135,22 @@
   </main>
 
   <script>
-    const adminPass = "twist2025"; // ✅ 可修改成你的密碼
+    const adminPass = "twist2025";
     const mask = document.getElementById("loading-mask");
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
-      const pass = document.getElementById("adminPass").value;
-      if (pass === adminPass) {
+      if (document.getElementById("adminPass").value === adminPass) {
         document.getElementById("loginSection").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
         await loadVoteStats();
-        await loadCandidates(); // 🚀 登入後自動載入名單
+        await loadCandidates();
       } else {
         document.getElementById("loginMsg").textContent = "密碼錯誤！";
       }
     });
 
-    // ✅ 顯示／隱藏遮罩
     const loading = (show) => mask.style.display = show ? "flex" : "none";
 
-    // ✅ 載入投票統計（僅顯示已投票數）
     async function loadVoteStats() {
       const session = document.getElementById("sessionSelect").value;
       try {
@@ -169,25 +162,17 @@
       }
     }
 
-    document.getElementById("refreshStats").addEventListener("click", loadVoteStats);
-
-    // ✅ 載入現有候選人名單
     async function loadCandidates() {
       const session = document.getElementById("sessionSelect").value;
       try {
         const res = await fetch(`/api/candidates?session=${session}`);
         const list = await res.json();
-        if (list.length) {
-          document.getElementById("candidateInput").value = list.map(c => c.name).join("\n");
-        } else {
-          document.getElementById("candidateInput").value = "";
-        }
+        document.getElementById("candidateInput").value = list.map(c => c.name).join("\n");
       } catch {
         document.getElementById("candidateInput").value = "";
       }
     }
 
-    // ✅ 更新候選人
     document.getElementById("updateCandidates").addEventListener("click", async () => {
       const session = document.getElementById("sessionSelect").value;
       const names = document.getElementById("candidateInput").value.trim().split("\n").filter(x=>x);
@@ -202,13 +187,12 @@
       alert("✅ 候選人名單已更新");
     });
 
-    // ✅ 切換場次時自動載入資料
     document.getElementById("sessionSelect").addEventListener("change", async () => {
       await loadVoteStats();
       await loadCandidates();
+      document.getElementById("tokenList").style.display = "none";
     });
 
-    // ✅ 產生投票碼
     document.getElementById("generateTokens").addEventListener("click", async () => {
       const session = document.getElementById("sessionSelect").value;
       loading(true);
@@ -218,7 +202,24 @@
       loadVoteStats();
     });
 
-    // ✅ 匯出 PDF
+    // 🧾 顯示／隱藏投票碼清單（含是否已投票）
+    document.getElementById("toggleTokens").addEventListener("click", async () => {
+      const tokenDiv = document.getElementById("tokenList");
+      if (tokenDiv.style.display === "none") {
+        const session = document.getElementById("sessionSelect").value;
+        loading(true);
+        const res = await fetch(`/api/tokens?session=${session}`);
+        const list = await res.json();
+        loading(false);
+        tokenDiv.innerHTML = list.map(t =>
+          `<div class="token-item"><span>${t.code}</span><span>${t.voted ? "✅" : "❌"}</span></div>`
+        ).join("");
+        tokenDiv.style.display = "block";
+      } else {
+        tokenDiv.style.display = "none";
+      }
+    });
+
     document.getElementById("exportPDF").addEventListener("click", async () => {
       const session = document.getElementById("sessionSelect").value;
       loading(true);
@@ -227,13 +228,11 @@
       alert("✅ PDF 產生完成！");
     });
 
-    // ✅ 下載 PDF ZIP
     document.getElementById("downloadPDF").addEventListener("click", () => {
       const session = document.getElementById("sessionSelect").value;
       window.open(`/api/download-pdf?session=${session}`, "_blank");
     });
 
-    // ✅ 顯示／隱藏投票結果
     document.getElementById("toggleResult").addEventListener("click", async () => {
       const resultDiv = document.getElementById("resultList");
       if (resultDiv.style.display === "none") {
@@ -250,7 +249,6 @@
       }
     });
 
-    // ⏱ 每 10 秒自動更新投票統計
     setInterval(loadVoteStats, 10000);
   </script>
 </body>

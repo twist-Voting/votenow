@@ -31,6 +31,7 @@
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       padding: 25px;
       margin-bottom: 25px;
+      animation: fadeIn 0.4s ease-in;
     }
     h3 {
       color: #2c3e50;
@@ -79,6 +80,10 @@
       font-size: 22px;
       color: #007bff;
       z-index: 1000;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
@@ -137,18 +142,19 @@
     const adminPass = "twist2025"; // ✅ 可修改成你的密碼
     const mask = document.getElementById("loading-mask");
 
-    document.getElementById("loginBtn").addEventListener("click", () => {
+    document.getElementById("loginBtn").addEventListener("click", async () => {
       const pass = document.getElementById("adminPass").value;
       if (pass === adminPass) {
         document.getElementById("loginSection").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
-        loadVoteStats();
+        await loadVoteStats();
+        await loadCandidates(); // 🚀 登入後自動載入名單
       } else {
         document.getElementById("loginMsg").textContent = "密碼錯誤！";
       }
     });
 
-    // ✅ 顯示／隱藏載入遮罩
+    // ✅ 顯示／隱藏遮罩
     const loading = (show) => mask.style.display = show ? "flex" : "none";
 
     // ✅ 載入投票統計
@@ -158,13 +164,29 @@
         const res = await fetch(`/api/progress?session=${session}`);
         const data = await res.json();
         document.getElementById("voteStats").innerHTML =
-          `🧾 投票總數：${data.voted}/${data.total}　(完成率 ${(data.total ? Math.round(data.voted / data.total * 100) : 0)}%)`;
+          `🧾 投票總數：${data.voted}`;
       } catch {
         document.getElementById("voteStats").textContent = "無法取得統計資料";
       }
     }
 
     document.getElementById("refreshStats").addEventListener("click", loadVoteStats);
+
+    // ✅ 載入現有候選人名單
+    async function loadCandidates() {
+      const session = document.getElementById("sessionSelect").value;
+      try {
+        const res = await fetch(`/api/candidates?session=${session}`);
+        const list = await res.json();
+        if (list.length) {
+          document.getElementById("candidateInput").value = list.map(c => c.name).join("\n");
+        } else {
+          document.getElementById("candidateInput").value = "";
+        }
+      } catch {
+        document.getElementById("candidateInput").value = "";
+      }
+    }
 
     // ✅ 更新候選人
     document.getElementById("updateCandidates").addEventListener("click", async () => {
@@ -179,6 +201,12 @@
       });
       loading(false);
       alert("✅ 候選人名單已更新");
+    });
+
+    // ✅ 切換場次時自動載入資料
+    document.getElementById("sessionSelect").addEventListener("change", async () => {
+      await loadVoteStats();
+      await loadCandidates();
     });
 
     // ✅ 產生投票碼

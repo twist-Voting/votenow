@@ -87,7 +87,9 @@
 
     <button onclick="updateCandidates()">更新候選人名單</button>
     <button onclick="generateTokens()">產生投票碼（100 組）</button>
-    <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button>
+    <!-- <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button> -->
+     <button onclick="exportPDF()">匯出 PDF（含 QR Code）</button>
+<button onclick="downloadPDF()">📦 下載 PDF 壓縮包</button>
     <button onclick="loadTokens()">顯示投票碼清單</button>
 
     <h3>目前投票碼：</h3>
@@ -95,6 +97,14 @@
   </div>
 
   <script>
+    async function downloadPDF() {
+  const session = document.getElementById("session").value;
+  const link = document.createElement("a");
+  link.href = `/api/download-pdf?session=${session}`;
+  link.download = `${session}_pdf_tokens.zip`;
+  link.click();
+}
+
     async function login() {
       const password = document.getElementById("password").value;
       const res = await fetch("/api/admin/login", {

@@ -6,6 +6,8 @@ import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import cors from "cors";
 import dotenv from "dotenv";
+import archiver from "archiver";
+
 dotenv.config();
 
 const app = express();
@@ -35,6 +37,26 @@ function loadJSON(file) {
 function saveJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
+
+
+// ✅ 一鍵下載 PDF 壓縮包
+app.get("/api/download-pdf", async (req, res) => {
+  const { session } = req.query;
+  const dir = path.join(TOKEN_DIR, session);
+
+  if (!fs.existsSync(dir)) {
+    return res.status(404).send("找不到 PDF 資料夾，請先匯出 PDF");
+  }
+
+  const zipName = `${session}_pdf_tokens.zip`;
+  res.setHeader("Content-Disposition", `attachment; filename=${zipName}`);
+  res.setHeader("Content-Type", "application/zip");
+
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.pipe(res);
+  archive.directory(dir, false);
+  archive.finalize();
+});
 
 // ✅ 管理者登入
 app.post("/api/admin/login", (req, res) => {

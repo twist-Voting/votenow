@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,16 +13,25 @@
       padding: 0;
       color: #333;
     }
-    #login-box, #admin-panel {
+
+    #login-box,
+    #admin-panel {
       max-width: 700px;
       margin: 60px auto;
       background: white;
       border-radius: 12px;
       padding: 30px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     }
-    h1, h2 { text-align: center; }
-    input, select, textarea {
+
+    h1,
+    h2 {
+      text-align: center;
+    }
+
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 10px;
       margin-top: 8px;
@@ -29,6 +39,7 @@
       border: 1px solid #ccc;
       font-size: 15px;
     }
+
     button {
       padding: 10px 16px;
       margin: 5px 4px;
@@ -39,14 +50,27 @@
       background-color: #007bff;
       color: white;
     }
-    button:hover { background-color: #0056b3; }
-    .danger { background-color: #d9534f; }
-    .danger:hover { background-color: #b52b27; }
-    .hidden { display: none; }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .danger {
+      background-color: #d9534f;
+    }
+
+    .danger:hover {
+      background-color: #b52b27;
+    }
+
+    .hidden {
+      display: none;
+    }
+
     #loading-mask {
       position: fixed;
       inset: 0;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255, 255, 255, 0.8);
       display: none;
       align-items: center;
       justify-content: center;
@@ -55,6 +79,7 @@
       color: #007bff;
       z-index: 1000;
     }
+
     .info-box {
       background: #e8f0fe;
       border-left: 6px solid #4285f4;
@@ -62,12 +87,54 @@
       border-radius: 6px;
       margin-top: 10px;
     }
+
+    /* ⭐ Tabs 樣式 */
+    #tabs {
+      display: flex;
+      margin-top: 20px;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 10px;
+      gap: 10px;
+    }
+
+    .tab {
+      padding: 10px 18px;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      background: #e9ecef;
+      font-weight: bold;
+    }
+
+    .tab:hover {
+      background: #d4d8dc;
+    }
+
+    .active-tab {
+      background: #007bff;
+      color: white;
+    }
+
+    .tab-page {
+      animation: fadeIn 0.2s ease-in-out;
+      margin-top: 15px;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
   </style>
 </head>
+
 <body>
   <div id="loading-mask">處理中，請稍候...</div>
 
-  <!-- ✅ 登入頁面 -->
+  <!-- ⭐ 登入頁面 -->
   <div id="login-box">
     <h1>VoteNow 管理登入</h1>
     <label>帳號：</label>
@@ -78,7 +145,7 @@
     <div id="login-msg" style="color:red;margin-top:10px;"></div>
   </div>
 
-  <!-- ✅ 管理介面 -->
+  <!-- ⭐ 管理介面 -->
   <div id="admin-panel" class="hidden">
     <h1>VoteNow 管理後台</h1>
     <button id="logout-btn" style="float:right;background:#6c757d;">登出</button>
@@ -92,54 +159,61 @@
       </select>
     </section>
 
-    <section>
-      <h2>候選人名單</h2>
-      <textarea id="candidate-input" rows="5" placeholder="每行輸入一位候選人姓名"></textarea>
-      <button id="save-candidates">💾 儲存名單</button>
-      <div id="candidate-list"></div>
-    </section>
+    <!-- ⭐ Tabs 列 -->
+    <div id="tabs">
+      <div class="tab active-tab" data-target="tab-candidates">候選人名單</div>
+      <div class="tab" data-target="tab-tokens">投票碼管理</div>
+      <div class="tab" data-target="tab-results">投票結果</div>
+    </div>
 
-    <section>
-      <h2>投票碼管理</h2>
-      <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
-      <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
-      <button id="export-pdf">🧾 匯出 PDF</button>
-       <!-- <button id="download-pdf">⬇️ 下載 PDF 壓縮包</button> -->
-        <button id="download-pdf" style="
-  background:#17a2b8;
-  color:white;
-  padding:10px 16px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-">
-  🧾 下載所有 PDF（ZIP）
-</button>
-      <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
+    <!-- ⭐ 候選人名單頁 -->
+    <div id="tab-candidates" class="tab-page">
+      <section>
+        <h2>候選人名單</h2>
+        <textarea id="candidate-input" rows="5" placeholder="每行輸入一位候選人姓名"></textarea>
+        <button id="save-candidates">💾 儲存名單</button>
+        <div id="candidate-list"></div>
+      </section>
+    </div>
 
-      <div id="progress" class="info-box">尚未載入投票進度</div>
-      <div id="token-list" class="hidden"></div>
-    </section>
+    <!-- ⭐ 投票碼管理頁 -->
+    <div id="tab-tokens" class="tab-page hidden">
+      <section>
+        <h2>投票碼管理</h2>
+        <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
+        <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
+        <button id="export-pdf">🧾 匯出 PDF</button>
+        <button id="download-pdf" style="background:#17a2b8;">🧾 下載所有 PDF（ZIP）</button>
+        <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
 
-    <section>
-      <h2>投票結果</h2>
-      <button id="show-result">📊 顯示投票結果</button>
-      <div id="result"></div>
-    </section>
+        <div id="progress" class="info-box">尚未載入投票進度</div>
+        <div id="token-list" class="hidden"></div>
+      </section>
+    </div>
+
+    <!-- ⭐ 投票結果頁 -->
+    <div id="tab-results" class="tab-page hidden">
+      <section>
+        <h2>投票結果</h2>
+        <button id="show-result">📊 顯示投票結果</button>
+        <div id="result"></div>
+      </section>
+    </div>
+
+    <!-- ⭐ ZIP Loading -->
     <div id="zip-loading-mask" style="
-  position:fixed;
-  inset:0;
-  background:rgba(255,255,255,0.8);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:2000;
-  font-size:22px;
-  color:#007bff;
-  font-weight:bold;
-">
-  ⏳ PDF 壓縮中，請稍候…
-</div>
+      position:fixed;
+      inset:0;
+      background:rgba(255,255,255,0.8);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:2000;
+      font-size:22px;
+      color:#007bff;
+      font-weight:bold;
+    ">⏳ PDF 壓縮中，請稍候…</div>
+
   </div>
 
   <script>
@@ -151,6 +225,17 @@
     const sessionSelect = document.getElementById("session-select");
 
     const showLoading = (b) => loadingMask.style.display = b ? "flex" : "none";
+
+    /* ⭐ 頁籤切換 */
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active-tab"));
+        tab.classList.add("active-tab");
+        document.querySelectorAll(".tab-page").forEach(p => p.classList.add("hidden"));
+        const target = tab.getAttribute("data-target");
+        document.getElementById(target).classList.remove("hidden");
+      });
+    });
 
     // ✅ 自動登入檢查
     window.addEventListener("load", async () => {
@@ -199,16 +284,16 @@
       await loadProgress();
     }
 
-      async function loadCandidates() {
-        const session = sessionSelect.value;
-        const res = await fetch(`${apiBase}/api/candidates?session=${session}`, { credentials: "include" });
-        if (!res.ok) return;
-        const list = await res.json();
-        document.getElementById("candidate-input").value = list.map(c => c.name).join("\n");
-        // document.getElementById("candidate-list").innerHTML = list.length
-        //   ? list.map(c => `• ${c.name}`).join("<br>")
-        //   : "（尚無名單）";
-      }
+    async function loadCandidates() {
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/candidates?session=${session}`, { credentials: "include" });
+      if (!res.ok) return;
+      const list = await res.json();
+      document.getElementById("candidate-input").value = list.map(c => c.name).join("\n");
+      // document.getElementById("candidate-list").innerHTML = list.length
+      //   ? list.map(c => `• ${c.name}`).join("<br>")
+      //   : "（尚無名單）";
+    }
 
     document.getElementById("save-candidates").onclick = async () => {
       const session = sessionSelect.value;
@@ -226,17 +311,17 @@
     // ✅ 投票碼管理
     let tokensVisible = false;
     document.getElementById("toggle-tokens").onclick = async () => {
-        tokensVisible = !tokensVisible;
-        const tokenList = document.getElementById("token-list");
-        if (!tokensVisible) return tokenList.classList.add("hidden");
+      tokensVisible = !tokensVisible;
+      const tokenList = document.getElementById("token-list");
+      if (!tokensVisible) return tokenList.classList.add("hidden");
 
-        const session = sessionSelect.value;
-        const res = await fetch(`${apiBase}/api/tokens?session=${session}`, { credentials: "include" });
-        const data = await res.json();
-        if (!Array.isArray(data)) return alert("尚未產生投票碼");
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/tokens?session=${session}`, { credentials: "include" });
+      const data = await res.json();
+      if (!Array.isArray(data)) return alert("尚未產生投票碼");
 
-        // tokenList.innerHTML = data.map((t,i)=>`${i+1}. ${t.code} ${t.voted?"✅":"❌"}`).join("<br>");
-        tokenList.innerHTML = `
+      // tokenList.innerHTML = data.map((t,i)=>`${i+1}. ${t.code} ${t.voted?"✅":"❌"}`).join("<br>");
+      tokenList.innerHTML = `
         <div style="display:grid;gap:10px;margin-top:15px;">
           ${data.map((t, i) => `
             <div style="
@@ -271,11 +356,11 @@
           `).join("")}
         </div>
       `;
-        tokenList.classList.remove("hidden");
-      };
-function openPdf(session, code) {
-  window.open(`${apiBase}/pdf_tokens/${session}/${session}-${code}.pdf`, "_blank");
-}
+      tokenList.classList.remove("hidden");
+    };
+    function openPdf(session, code) {
+      window.open(`${apiBase}/pdf_tokens/${session}/${session}-${code}.pdf`, "_blank");
+    }
     document.getElementById("generate-tokens").onclick = async () => {
       showLoading(true);
       const session = sessionSelect.value;
@@ -292,48 +377,48 @@ function openPdf(session, code) {
       alert("✅ PDF 已產生");
     };
 
-// document.getElementById("download-pdf").onclick = () => {
-//   const session = sessionSelect.value;
-//   window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
-// };
-document.getElementById("download-pdf").onclick = async () => {
-  const session = sessionSelect.value;
-  const mask = document.getElementById("zip-loading-mask");
+    // document.getElementById("download-pdf").onclick = () => {
+    //   const session = sessionSelect.value;
+    //   window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
+    // };
+    document.getElementById("download-pdf").onclick = async () => {
+      const session = sessionSelect.value;
+      const mask = document.getElementById("zip-loading-mask");
 
-  // 顯示 Loading
-  mask.style.display = "flex";
+      // 顯示 Loading
+      mask.style.display = "flex";
 
-  try {
-    const res = await fetch(`${apiBase}/api/download-pdf?session=${session}`, {
-      method: "GET",
-      credentials: "include"
-    });
+      try {
+        const res = await fetch(`${apiBase}/api/download-pdf?session=${session}`, {
+          method: "GET",
+          credentials: "include"
+        });
 
-    if (!res.ok) {
-      mask.style.display = "none";
-      return alert("⚠️ 壓縮失敗或找不到 PDF 資料夾");
-    }
+        if (!res.ok) {
+          mask.style.display = "none";
+          return alert("⚠️ 壓縮失敗或找不到 PDF 資料夾");
+        }
 
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
 
-    // 自動下載 ZIP
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${session}-PDFs.zip`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+        // 自動下載 ZIP
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${session}-PDFs.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
 
-  } catch (err) {
-    console.error("下載錯誤:", err);
-    alert("⚠️ 壓縮過程發生錯誤");
-  } finally {
-    // 關閉 loading 視窗
-    mask.style.display = "none";
-  }
-};
+      } catch (err) {
+        console.error("下載錯誤:", err);
+        alert("⚠️ 壓縮過程發生錯誤");
+      } finally {
+        // 關閉 loading 視窗
+        mask.style.display = "none";
+      }
+    };
 
     document.getElementById("reset-vote").onclick = async () => {
       if (!confirm("⚠️ 確定要清除所有投票紀錄？（投票碼保留）")) return;
@@ -356,17 +441,17 @@ document.getElementById("download-pdf").onclick = async () => {
     //   document.getElementById("result").textContent = `已投票 ${data.total} 人`;
     // };
     document.getElementById("show-result").onclick = async () => {
-        const session = sessionSelect.value;
-        const res = await fetch(`${apiBase}/api/result?session=${session}`, { credentials: "include" });
-        if (!res.ok) {
-          alert("目前尚無投票結果");
-          return;
-        }
-        const data = await res.json();
-        const sorted = data.sort((a, b) => b.votes - a.votes);
-        const div = document.getElementById("result");
+      const session = sessionSelect.value;
+      const res = await fetch(`${apiBase}/api/result?session=${session}`, { credentials: "include" });
+      if (!res.ok) {
+        alert("目前尚無投票結果");
+        return;
+      }
+      const data = await res.json();
+      const sorted = data.sort((a, b) => b.votes - a.votes);
+      const div = document.getElementById("result");
 
-        div.innerHTML = `
+      div.innerHTML = `
     <h3>📊 ${session} 投票結果</h3>
     <div style="display:grid;gap:8px;margin-top:10px;">
       ${sorted.map((r, i) => `
@@ -383,7 +468,7 @@ document.getElementById("download-pdf").onclick = async () => {
       `).join("")}
     </div>
   `;
-      };
+    };
 
 
     async function loadProgress() {
@@ -398,4 +483,5 @@ document.getElementById("download-pdf").onclick = async () => {
     setInterval(loadProgress, 5000);
   </script>
 </body>
+
 </html>

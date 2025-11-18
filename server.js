@@ -135,7 +135,7 @@ app.post("/api/vote", (req, res) => {
 });
 
 // ✅ 統計結果
-app.get("/api/result", requireAdmin, (req, res) => {
+app.get("/api/result", (req, res) => {
   const { session } = req.query;
   const candidates = loadJSON(getFile(session, "candidates"));
   const votes = loadJSON(getFile(session, "votes"));

@@ -480,6 +480,10 @@
       if (!res.ok) return;
       const data = await res.json();
       document.getElementById("progress").textContent = `已投票 ${data.total}`;
+
+      document.getElementById("toggle-tokens").click();
+      document.getElementById("toggle-tokens").click();
+      document.getElementById("show-result").click();
     }
 
     sessionSelect.onchange = () => { loadAll(); };

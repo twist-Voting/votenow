@@ -115,24 +115,40 @@ app.get("/api/tokens", (req, res) => {
   res.json(loadJSON(file));
 });
 
+import AsyncLock from "async-lock";
+import writeFileAtomic from "write-file-atomic";
+
+const lock = new AsyncLock();
+
+function saveJSONAtomic(file, data) {
+  writeFileAtomic.sync(file, JSON.stringify(data, null, 2));
+}
+
+
 // === 投票提交 ===
 app.post("/api/vote", (req, res) => {
   const { code, choices, session } = req.body;
-  const tokenFile = getFile(session, "tokens");
-  const voteFile = getFile(session, "votes");
 
-  const tokens = loadJSON(tokenFile);
-  const token = tokens.find((t) => t.code === code);
-  if (!token) return res.status(400).json({ success: false, error: "投票碼無效" });
-  if (token.voted) return res.status(400).json({ success: false, error: "此投票碼已使用" });
+  lock.acquire(`vote-${session}`, async () => {
+    const tokenFile = getFile(session, "tokens");
+    const voteFile = getFile(session, "votes");
 
-  const votes = loadJSON(voteFile);
-  votes.push({ code, choices, time: new Date().toISOString() });
-  token.voted = true;
+    const tokens = loadJSON(tokenFile);
+    const votes = loadJSON(voteFile);
 
-  saveJSON(tokenFile, tokens);
-  saveJSON(voteFile, votes);
-  res.json({ success: true });
+    const token = tokens.find((t) => t.code === code);
+
+    if (!token) throw new Error("投票碼無效");
+    if (token.voted) throw new Error("此投票碼已使用");
+
+    token.voted = true;
+    votes.push({ code, choices, time: new Date().toISOString() });
+
+    saveJSONAtomic(tokenFile, tokens);
+    saveJSONAtomic(voteFile, votes);
+  })
+    .then(() => res.json({ success: true }))
+    .catch((err) => res.status(400).json({ success: false, error: err.message }));
 });
 
 // ✅ 統計結果

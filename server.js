@@ -149,7 +149,8 @@ app.get("/api/result", (req, res) => {
     .map(([name, votes]) => ({ name, votes }))
     .sort((a,b) => b.votes - a.votes);
 
-  res.json(result);
+  // res.json(result);
+  res.json(votes);
 });
 
 // ✅ 匯出 PDF 壓縮包下載
@@ -245,6 +246,7 @@ app.get("/api/export-pdf", async (req, res) => {
 
     doc.moveDown();
     const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
+    // const qrUrl = `http://192.168.1.255:3000?session=${session}&code=${t.code}`;
     const qrData = await QRCode.toDataURL(qrUrl);
     doc.image(Buffer.from(qrData.split(",")[1], "base64"), { fit: [150, 150], align: "center" });
     doc.moveDown();

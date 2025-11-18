@@ -62,17 +62,6 @@
       border-radius: 6px;
       margin-top: 10px;
     }
-    .tab {
-  padding:10px 16px;
-  cursor:pointer;
-  font-weight:bold;
-  border-radius:6px 6px 0 0;
-}
-
-.active-tab {
-  background:#007bff;
-  color:white;
-}
   </style>
 </head>
 <body>
@@ -103,27 +92,13 @@
       </select>
     </section>
 
-<!-- ⭐ 頁籤列 -->
-<div id="tabs" style="
-  display:flex;
-  gap:10px;
-  margin-top:20px;
-  border-bottom:2px solid #ddd;
-  padding-bottom:10px;
-">
-  <div class="tab active-tab" data-target="tab-candidates">候選人名單</div>
-  <div class="tab" data-target="tab-tokens">投票碼管理</div>
-  <div class="tab" data-target="tab-results">投票結果</div>
-</div>
-<div id="tab-candidates" class="tab-page"></div>
     <section>
       <h2>候選人名單</h2>
       <textarea id="candidate-input" rows="5" placeholder="每行輸入一位候選人姓名"></textarea>
       <button id="save-candidates">💾 儲存名單</button>
       <div id="candidate-list"></div>
     </section>
-</div>
-<div id="tab-tokens" class="tab-page hidden"></div>
+
     <section>
       <h2>投票碼管理</h2>
       <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
@@ -146,14 +121,11 @@
       <div id="token-list" class="hidden"></div>
     </section>
 
-</div>
-<div id="tab-results" class="tab-page hidden"></div>
     <section>
       <h2>投票結果</h2>
       <button id="show-result">📊 顯示投票結果</button>
       <div id="result"></div>
     </section>
-</div>
     <div id="zip-loading-mask" style="
   position:fixed;
   inset:0;
@@ -413,21 +385,7 @@ document.getElementById("download-pdf").onclick = async () => {
   `;
       };
 
-// ⭐ 頁籤切換
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    // 移除所有 active 樣式
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active-tab"));
-    tab.classList.add("active-tab");
 
-    // 隱藏所有頁面
-    document.querySelectorAll(".tab-page").forEach(p => p.classList.add("hidden"));
-
-    // 顯示目標頁面
-    const target = tab.getAttribute("data-target");
-    document.getElementById(target).classList.remove("hidden");
-  });
-});
     async function loadProgress() {
       const session = sessionSelect.value;
       const res = await fetch(`${apiBase}/api/progress?session=${session}`, { credentials: "include" });

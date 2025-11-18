@@ -165,6 +165,7 @@ app.get("/api/result", (req, res) => {
 
 // ✅ 匯出 PDF 壓縮包下載
 import archiver from "archiver";
+import os from "os"; // 用來取得 tmp 目錄
 
 app.get("/api/download-pdf", async (req, res) => {
   const { session } = req.query;
@@ -174,23 +175,39 @@ app.get("/api/download-pdf", async (req, res) => {
   if (!fs.existsSync(outDir)) return res.status(404).send("找不到 PDF 目錄");
 
   const zipName = `${session}-PDFs.zip`;
-  const zipPath = path.join(outDir, zipName);
 
-  // 建立 zip 壓縮包
+  // ⭐ ZIP 放到系統暫存資料夾，避免遞迴壓縮自己
+  const zipPath = path.join(os.tmpdir(), zipName);
+
+  // 若暫存 zip 已存在先刪除
+  if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+
   const output = fs.createWriteStream(zipPath);
   const archive = archiver("zip", { zlib: { level: 9 } });
 
-  archive.pipe(output);
-  archive.directory(outDir, false);
-  await archive.finalize();
-
+  // 完成 zip 後處理下載
   output.on("close", () => {
-    res.download(zipPath, zipName, (err) => {
+    res.download(zipPath, zipName, err => {
       if (err) console.error("下載錯誤:", err);
-      fs.unlink(zipPath, () => {}); // 自動刪除暫存 zip
+      fs.unlink(zipPath, () => {}); // 刪除暫存 ZIP
     });
   });
+
+  archive.on("error", err => {
+    console.error("壓縮失敗:", err);
+    res.status(500).send("壓縮發生錯誤");
+  });
+
+  archive.pipe(output);
+
+  // ⭐ 只加入 PDF，不加入 zip 自己
+  archive.directory(outDir, false);
+
+  // ⭐ finalize 移到最後，並不需 await
+  archive.finalize();  
 });
+
+
 
 app.get("/api/check", (req, res) => {
   const { session, code } = req.query;

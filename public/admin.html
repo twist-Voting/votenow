@@ -104,7 +104,17 @@
       <button id="generate-tokens">🆕 產生投票碼（100 組）</button>
       <button id="toggle-tokens">📋 顯示／隱藏投票碼清單</button>
       <button id="export-pdf">🧾 匯出 PDF</button>
-       <button id="download-pdf">⬇️ 下載 PDF 壓縮包</button>
+       <!-- <button id="download-pdf">⬇️ 下載 PDF 壓縮包</button> -->
+        <button id="download-pdf" style="
+  background:#17a2b8;
+  color:white;
+  padding:10px 16px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+  🧾 下載所有 PDF（ZIP）
+</button>
       <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
 
       <div id="progress" class="info-box">尚未載入投票進度</div>
@@ -116,6 +126,20 @@
       <button id="show-result">📊 顯示投票結果</button>
       <div id="result"></div>
     </section>
+    <div id="zip-loading-mask" style="
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,0.8);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  font-size:22px;
+  color:#007bff;
+  font-weight:bold;
+">
+  ⏳ PDF 壓縮中，請稍候…
+</div>
   </div>
 
   <script>
@@ -268,9 +292,47 @@ function openPdf(session, code) {
       alert("✅ PDF 已產生");
     };
 
-document.getElementById("download-pdf").onclick = () => {
+// document.getElementById("download-pdf").onclick = () => {
+//   const session = sessionSelect.value;
+//   window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
+// };
+document.getElementById("download-pdf").onclick = async () => {
   const session = sessionSelect.value;
-  window.open(`${apiBase}/api/download-pdf?session=${session}`, "_blank");
+  const mask = document.getElementById("zip-loading-mask");
+
+  // 顯示 Loading
+  mask.style.display = "flex";
+
+  try {
+    const res = await fetch(`${apiBase}/api/download-pdf?session=${session}`, {
+      method: "GET",
+      credentials: "include"
+    });
+
+    if (!res.ok) {
+      mask.style.display = "none";
+      return alert("⚠️ 壓縮失敗或找不到 PDF 資料夾");
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    // 自動下載 ZIP
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${session}-PDFs.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error("下載錯誤:", err);
+    alert("⚠️ 壓縮過程發生錯誤");
+  } finally {
+    // 關閉 loading 視窗
+    mask.style.display = "none";
+  }
 };
 
     document.getElementById("reset-vote").onclick = async () => {

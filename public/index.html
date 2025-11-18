@@ -157,14 +157,56 @@ async function loadCandidates() {
   const maxVote = session.includes("監事") ? 5 : 15;
   document.getElementById("voteTitle").textContent = `請勾選候選人（最多 ${maxVote} 位）`;
 
-  voteForm.innerHTML = list.map(
+  let html = "";
+
+  // 加入即時顯示選取數
+  counterDisplay = document.createElement("p");
+  counterDisplay.style = "color:#666;font-weight:bold;margin-top:5px;";
+  counterDisplay.textContent = `目前已選：0 / ${maxVote}`;
+  voteForm.appendChild(counterDisplay);
+
+  // 加入候選人 checkbox
+  html += list.map(
     (c) => `
-      <label class="candidate">
-        <input type="checkbox" name="vote" value="${c.id}"> ${c.name}
-      </label>`
+    <label class="candidate">
+      <input type="checkbox" class="voteCheck" value="${c.id}"> ${c.name}
+    </label>`
   ).join("");
+
+  voteForm.innerHTML = html;
+  voteForm.appendChild(counterDisplay);
+
+  // ★ 加入即時檢核
+  addRealtimeCheck();
 }
 
+// ========================
+// 即時檢核邏輯
+// ========================
+function addRealtimeCheck() {
+  const checkboxes = document.querySelectorAll(".voteCheck");
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener("change", () => {
+      let selected = [...checkboxes].filter(c => c.checked);
+
+      // 更新畫面上的選取數
+      counterDisplay.textContent = `目前已選：${selected.length} / ${maxVote}`;
+      counterDisplay.style.color = selected.length > maxVote ? "red" : "#666";
+
+      // 若超過，取消最後一筆
+      if (selected.length > maxVote) {
+        cb.checked = false;
+        selected = [...checkboxes].filter(c => c.checked);
+
+        counterDisplay.textContent = `目前已選：${selected.length} / ${maxVote}`;
+        counterDisplay.style.color = "red";
+
+        alert(`⚠️ 最多只能選擇 ${maxVote} 位${session}`);
+      }
+    });
+  });
+}
 // ✅ 投票送出
 document.getElementById("submitVote").addEventListener("click", async () => {
   const checked = Array.from(document.querySelectorAll("input[name='vote']:checked")).map(

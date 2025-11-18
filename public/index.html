@@ -97,7 +97,7 @@
   <script>
 const urlParams = new URLSearchParams(window.location.search);
 const session = urlParams.get("session") || "理事";
-const code = urlParams.get("code") || "";
+const codeFromUrl = urlParams.get("code") || "";
 
 const loginDiv = document.getElementById("login");
 const voteDiv = document.getElementById("vote");
@@ -105,16 +105,28 @@ const voteForm = document.getElementById("voteForm");
 const startVoteBtn = document.getElementById("startVoteBtn");
 const loadingMask = document.getElementById("loading-mask");
 
-// ✅ 檢查投票碼有效性（進入頁面時即檢查）
+// ★ 即時顯示選取人數的區塊
+let counterDisplay = null;
+
+// 監事最多 5 位，理事最多 15 位
+const maxVote = session.includes("監事") ? 5 : 15;
+
+
+// ========================
+// 進入頁面時如有 code 立即驗證
+// ========================
 window.addEventListener("load", async () => {
-  if (code) {
-    await validateCodeAndLoad(code);
+  if (codeFromUrl) {
+    await validateCodeAndLoad(codeFromUrl);
   } else {
     loginDiv.style.display = "block";
   }
 });
 
-// ✅ 手動輸入投票碼按鈕
+
+// ========================
+// 手動輸入投票碼
+// ========================
 startVoteBtn.addEventListener("click", async () => {
   const inputCode = document.getElementById("codeInput").value.trim();
   if (!inputCode) {
@@ -124,9 +136,13 @@ startVoteBtn.addEventListener("click", async () => {
   await validateCodeAndLoad(inputCode);
 });
 
-// ✅ 驗證投票碼並載入候選人
+
+// ========================
+// 驗證投票碼
+// ========================
 async function validateCodeAndLoad(checkCode) {
   showLoading(true);
+
   try {
     const res = await fetch(`/api/check?session=${session}&code=${checkCode}`);
     const data = await res.json();
@@ -142,6 +158,8 @@ async function validateCodeAndLoad(checkCode) {
 
     loginDiv.style.display = "none";
     voteDiv.style.display = "block";
+    window.currentVoteCode = checkCode; // 儲存目前投票碼
+
     await loadCandidates();
   } catch (err) {
     alert("連線異常，請稍後再試！");
@@ -150,11 +168,14 @@ async function validateCodeAndLoad(checkCode) {
   }
 }
 
-// ✅ 載入候選人清單
+
+// ========================
+// 載入候選人 + 加入即時檢核
+// ========================
 async function loadCandidates() {
   const res = await fetch(`/api/candidates?session=${session}`);
   const list = await res.json();
-  const maxVote = session.includes("監事") ? 5 : 15;
+
   document.getElementById("voteTitle").textContent = `請勾選候選人（最多 ${maxVote} 位）`;
 
   let html = "";
@@ -179,6 +200,7 @@ async function loadCandidates() {
   // ★ 加入即時檢核
   addRealtimeCheck();
 }
+
 
 // ========================
 // 即時檢核邏輯
@@ -207,13 +229,15 @@ function addRealtimeCheck() {
     });
   });
 }
-// ✅ 投票送出
-document.getElementById("submitVote").addEventListener("click", async () => {
-  const checked = Array.from(document.querySelectorAll("input[name='vote']:checked")).map(
-    (c) => Number(c.value)
-  );
 
-  const maxVote = session.includes("監事") ? 5 : 15;
+
+// ========================
+// 送出投票
+// ========================
+document.getElementById("submitVote").addEventListener("click", async () => {
+  const checked = Array.from(document.querySelectorAll(".voteCheck:checked"))
+    .map(c => Number(c.value));
+
   if (checked.length === 0) return alert("請至少選擇一位候選人！");
   if (checked.length > maxVote) return alert(`最多只能勾選 ${maxVote} 位${session}！`);
 
@@ -221,12 +245,18 @@ document.getElementById("submitVote").addEventListener("click", async () => {
 
   showLoading(true);
   try {
-    const payload = { code, session, choices: checked };
+    const payload = {
+      code: window.currentVoteCode,
+      session,
+      choices: checked
+    };
+
     const res = await fetch("/api/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+
     const result = await res.json();
 
     if (result.success) {
@@ -245,7 +275,10 @@ document.getElementById("submitVote").addEventListener("click", async () => {
   }
 });
 
-// ✅ 顯示／隱藏遮罩
+
+// ========================
+// Loading 遮罩
+// ========================
 function showLoading(show) {
   loadingMask.style.display = show ? "flex" : "none";
 }

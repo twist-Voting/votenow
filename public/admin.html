@@ -202,19 +202,56 @@
     // ✅ 投票碼管理
     let tokensVisible = false;
     document.getElementById("toggle-tokens").onclick = async () => {
-      tokensVisible = !tokensVisible;
-      const tokenList = document.getElementById("token-list");
-      if (!tokensVisible) return tokenList.classList.add("hidden");
+        tokensVisible = !tokensVisible;
+        const tokenList = document.getElementById("token-list");
+        if (!tokensVisible) return tokenList.classList.add("hidden");
 
-      const session = sessionSelect.value;
-      const res = await fetch(`${apiBase}/api/tokens?session=${session}`, { credentials: "include" });
-      const data = await res.json();
-      if (!Array.isArray(data)) return alert("尚未產生投票碼");
+        const session = sessionSelect.value;
+        const res = await fetch(`${apiBase}/api/tokens?session=${session}`, { credentials: "include" });
+        const data = await res.json();
+        if (!Array.isArray(data)) return alert("尚未產生投票碼");
 
-      tokenList.innerHTML = data.map((t,i)=>`${i+1}. ${t.code} ${t.voted?"✅":"❌"}`).join("<br>");
-      tokenList.classList.remove("hidden");
-    };
+        // tokenList.innerHTML = data.map((t,i)=>`${i+1}. ${t.code} ${t.voted?"✅":"❌"}`).join("<br>");
+        tokenList.innerHTML = `
+        <div style="display:grid;gap:10px;margin-top:15px;">
+          ${data.map((t, i) => `
+            <div style="
+              padding:12px;
+              border-radius:8px;
+              background:${t.voted ? '#e8ffe8' : '#fff5f5'};
+              border-left:6px solid ${t.voted ? '#28a745' : '#dc3545'};
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              font-size:15px;
+            ">
+              <div>
+                <b>${i + 1}. ${t.code}</b>
+                <span style="margin-left:10px;color:${t.voted ? '#28a745' : '#dc3545'};">
+                  ${t.voted ? "✔ 已投票" : "✘ 未投票"}
+                </span>
+              </div>
 
+              <button onclick="openPdf('${session}', '${t.code}')" 
+                style="
+                  padding:6px 10px;
+                  background:#007bff;
+                  color:white;
+                  border:none;
+                  border-radius:6px;
+                  cursor:pointer;
+                ">
+                📄 下載 PDF
+              </button>
+            </div>
+          `).join("")}
+        </div>
+      `;
+        tokenList.classList.remove("hidden");
+      };
+function openPdf(session, code) {
+  window.open(`${apiBase}/pdf_tokens/${session}/${session}-${code}.pdf`, "_blank");
+}
     document.getElementById("generate-tokens").onclick = async () => {
       showLoading(true);
       const session = sessionSelect.value;

@@ -20,6 +20,7 @@ if (!fs.existsSync(TOKEN_DIR)) fs.mkdirSync(TOKEN_DIR);
 // === Middleware ===
 app.use(cors());
 app.use(express.static("public"));
+app.use("/pdf_tokens", express.static("pdf_tokens"));
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(

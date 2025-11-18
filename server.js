@@ -125,14 +125,23 @@ app.post("/api/vote", (req, res) => {
   if (!token) return res.status(400).json({ success: false, error: "投票碼無效" });
   if (token.voted) return res.status(400).json({ success: false, error: "此投票碼已使用" });
 
+  const candidates = loadJSON(getFile(session, "candidates"));
+
+  // ⭐⭐⭐ 轉換：ID → 候選人名字
+  const nameChoices = choices.map(id => {
+    const found = candidates.find(c => c.id === id);
+    return found ? found.name : null;
+  }).filter(Boolean);
+
   const votes = loadJSON(voteFile);
-  votes.push({ code, choices, time: new Date().toISOString() });
+  votes.push({ code, choices: nameChoices, time: new Date().toISOString() });
   token.voted = true;
 
   saveJSON(tokenFile, tokens);
   saveJSON(voteFile, votes);
   res.json({ success: true });
 });
+
 
 // ✅ 統計結果
 app.get("/api/result", (req, res) => {

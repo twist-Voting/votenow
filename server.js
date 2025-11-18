@@ -125,16 +125,8 @@ app.post("/api/vote", (req, res) => {
   if (!token) return res.status(400).json({ success: false, error: "投票碼無效" });
   if (token.voted) return res.status(400).json({ success: false, error: "此投票碼已使用" });
 
-  const candidates = loadJSON(getFile(session, "candidates"));
-
-  // ⭐⭐⭐ 轉換：ID → 候選人名字
-  const nameChoices = choices.map(id => {
-    const found = candidates.find(c => c.id === id);
-    return found ? found.name : null;
-  }).filter(Boolean);
-
   const votes = loadJSON(voteFile);
-  votes.push({ code, choices: nameChoices, time: new Date().toISOString() });
+  votes.push({ code, choices, time: new Date().toISOString() });
   token.voted = true;
 
   saveJSON(tokenFile, tokens);
@@ -142,25 +134,33 @@ app.post("/api/vote", (req, res) => {
   res.json({ success: true });
 });
 
-
 // ✅ 統計結果
 app.get("/api/result", (req, res) => {
   const { session } = req.query;
-  const candidates = loadJSON(getFile(session, "candidates"));
-  const votes = loadJSON(getFile(session, "votes"));
-  const tally = Object.fromEntries(candidates.map(c => [c.name, 0]));
 
-  votes.forEach(v => v.choices.forEach(name => {
-    if (tally[name] !== undefined) tally[name]++;
+  const candidates = loadJSON(getFile(session, "candidates")); 
+  const votes = loadJSON(getFile(session, "votes"));
+
+  // ★ 用 ID 建立 tally
+  const tally = Object.fromEntries(candidates.map(c => [c.id, 0]));
+
+  // ★ 票數累計（也用 ID）
+  votes.forEach(v => v.choices.forEach(id => {
+    if (tally[id] !== undefined) tally[id]++;
   }));
 
-  const result = Object.entries(tally)
-    .map(([name, votes]) => ({ name, votes }))
-    .sort((a,b) => b.votes - a.votes);
+  // ★ 轉成輸出格式（id + name + votes）
+  const result = candidates
+    .map(c => ({
+      id: c.id,
+      name: c.name,
+      votes: tally[c.id] || 0
+    }))
+    .sort((a, b) => b.votes - a.votes);
 
-  // res.json(result);
-  res.json(votes);
+  res.json(result);
 });
+
 
 // ✅ 匯出 PDF 壓縮包下載
 import archiver from "archiver";

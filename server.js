@@ -445,39 +445,46 @@ app.get("/api/export-vote-excel", async (req, res) => {
   const votes = loadJSON(getFile(session, "votes"));
   const candidates = loadJSON(getFile(session, "candidates"));
 
-  // 建立 Excel
+  // ⭐ 建立 Excel
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(`${session} 投票結果`);
 
-  sheet.columns = [
+  // ⭐ 基本欄位
+  const baseColumns = [
     { header: "投票碼", key: "code", width: 15 },
     { header: "狀態", key: "status", width: 12 },
     { header: "投票時間", key: "time", width: 25 },
-    { header: "投給的候選人", key: "choices", width: 50 }
   ];
 
+  // ⭐ 每一位候選人一欄
+  const candidateColumns = candidates.map(c => ({
+    header: c.name,
+    key: `c_${c.id}`,
+    width: 15
+  }));
+
+  sheet.columns = [...baseColumns, ...candidateColumns];
+
+  // ⭐ 寫入資料
   for (const t of tokens) {
     const record = votes.find(v => v.code === t.code);
 
-    let choicesNames = "";
-    if (record) {
-      choicesNames = record.choices
-        .map(id => {
-          const c = candidates.find(x => x.id === id);
-          return c ? c.name : `未知ID(${id})`;
-        })
-        .join("、");
-    }
-
-    sheet.addRow({
+    const rowData = {
       code: t.code,
       status: t.voted ? "已投票" : "未投票",
       time: record ? record.time : "",
-      choices: choicesNames
+    };
+
+    // ⭐ 候選人勾選欄位：有投 = 1，未投 = 0
+    candidates.forEach(c => {
+      const voted = record ? record.choices.includes(c.id) : false;
+      rowData[`c_${c.id}`] = voted ? 1 : 0;
     });
+
+    sheet.addRow(rowData);
   }
 
-  // 輸出 Excel
+  // ⭐ 輸出 Excel
   res.setHeader(
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -490,6 +497,7 @@ app.get("/api/export-vote-excel", async (req, res) => {
   await workbook.xlsx.write(res);
   res.end();
 });
+
 
 
 // === 啟動伺服器 ===

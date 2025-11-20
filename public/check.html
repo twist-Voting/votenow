@@ -190,7 +190,7 @@
 
                 if (data.status === "not_voted") {
                     voteBtn.classList.remove("hidden");
-                    voteBtn.href = `/?session=${session}&code=${code}`;
+                    voteBtn.href = '/?session=' + session + '&code=' + code;
                 }
 
                     console.log(data.status);

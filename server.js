@@ -259,6 +259,47 @@ app.post("/api/reset", (req, res) => {
 });
 
 // === 匯出 PDF（中文 + QR code） ===
+// app.get("/api/export-pdf", async (req, res) => {
+//   const { session } = req.query;
+//   const tokens = loadJSON(getFile(session, "tokens"));
+//   const fontPath = path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf");
+//   if (!tokens.length) return res.status(400).send("尚未產生投票碼");
+
+//   const outDir = path.join(TOKEN_DIR, session);
+//   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+//   for (const t of tokens) {
+//     const doc = new PDFDocument();
+//     const output = path.join(outDir, `${session}-${t.code}.pdf`);
+//     const stream = fs.createWriteStream(output);
+//     doc.pipe(stream);
+//     // doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
+//     // doc.font(path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf"));
+//     if (fs.existsSync(fontPath)) doc.font(fontPath);
+
+//     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
+//     doc.moveDown();
+//     doc.fontSize(14).text("投票說明：");
+
+//     if (session.includes("監事")) {
+//       doc.text("監事選舉請勾選 5 人，票數最高之 5 人當選，1 人候補。");
+//     } else {
+//       doc.text("理事選舉請勾選 15 人，票數最高之 15 人當選，3 人候補。");
+//     }
+
+//     doc.moveDown();
+//     const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
+//     // const qrUrl = `http://192.168.1.255:3000?session=${session}&code=${t.code}`;
+//     const qrData = await QRCode.toDataURL(qrUrl);
+//     doc.image(Buffer.from(qrData.split(",")[1], "base64"), { fit: [150, 150], align: "center" });
+//     doc.moveDown();
+//     doc.fontSize(16).text(`投票碼：${t.code}`, { align: "center" });
+//     doc.end();
+//     await new Promise((resolve) => stream.on("finish", resolve));
+//   }
+
+//   res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF，儲存在 /pdf_tokens/${session}/`);
+// });
 app.get("/api/export-pdf", async (req, res) => {
   const { session } = req.query;
   const tokens = loadJSON(getFile(session, "tokens"));
@@ -269,14 +310,14 @@ app.get("/api/export-pdf", async (req, res) => {
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
   for (const t of tokens) {
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 50 });
     const output = path.join(outDir, `${session}-${t.code}.pdf`);
     const stream = fs.createWriteStream(output);
     doc.pipe(stream);
-    // doc.font("/usr/share/fonts/truetype/noto/NotoSansTC-Regular.otf");
-    // doc.font(path.join(__dirname, "fonts", "NotoSansTC-VariableFont_wght.ttf"));
+
     if (fs.existsSync(fontPath)) doc.font(fontPath);
 
+    // ===== 標題 =====
     doc.fontSize(18).text(`第八屆 台灣女科技人學會 會員大會 ${session}選舉`, { align: "center" });
     doc.moveDown();
     doc.fontSize(14).text("投票說明：");
@@ -288,18 +329,42 @@ app.get("/api/export-pdf", async (req, res) => {
     }
 
     doc.moveDown();
-    const qrUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
-    // const qrUrl = `http://192.168.1.255:3000?session=${session}&code=${t.code}`;
-    const qrData = await QRCode.toDataURL(qrUrl);
-    doc.image(Buffer.from(qrData.split(",")[1], "base64"), { fit: [150, 150], align: "center" });
+
+    // ===== QRCode ①：投票 =====
+    const voteUrl = `https://votenow-bn56.onrender.com?session=${session}&code=${t.code}`;
+    const voteQR = await QRCode.toDataURL(voteUrl);
+
+    doc.fontSize(16).text("投票 QR Code", { align: "center" });
+    doc.image(Buffer.from(voteQR.split(",")[1], "base64"), {
+      fit: [150, 150],
+      align: "center"
+    });
     doc.moveDown();
     doc.fontSize(16).text(`投票碼：${t.code}`, { align: "center" });
+
+    doc.moveDown(2);
+
+    // ===== QRCode ②：個人查詢投票狀態 =====
+    const checkUrl = `https://votenow-bn56.onrender.com/check?session=${session}&code=${t.code}`;
+    const checkQR = await QRCode.toDataURL(checkUrl);
+
+    doc.fontSize(16).text("查詢投票狀態 QR Code（專屬於本投票碼）", { align: "center" });
+    doc.image(Buffer.from(checkQR.split(",")[1], "base64"), {
+      fit: [150, 150],
+      align: "center"
+    });
+    doc.moveDown();
+    doc.fontSize(12).text(`查詢網址：${checkUrl}`, {
+      align: "center"
+    });
+
     doc.end();
     await new Promise((resolve) => stream.on("finish", resolve));
   }
 
-  res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF，儲存在 /pdf_tokens/${session}/`);
+  res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF（含投票 QR + 個人查詢 QR），儲存在 /pdf_tokens/${session}/`);
 });
+
 
 // === 啟動伺服器 ===
 const PORT = process.env.PORT || 3000;

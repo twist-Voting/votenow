@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>投票狀態查詢 | VoteNow</title>
+    <link rel="stylesheet" href="/check.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            font-family: "Noto Sans TC", sans-serif;
+            background: linear-gradient(180deg, #faf6ff, #f2ecff);
+            color: #333;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #6a1b9a;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            font-size: 20px;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin: 0;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 10px;
+            background: #6a1b9a;
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        .button:hover {
+            opacity: .9;
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+        }
+
+        /* RWD 手機優化 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>投票狀態查詢</h1>
+
+        <div id="loading" class="card loading">
+            查詢中…
+        </div>
+
+        <div id="result" class="card hidden">
+            <h2 id="statusText"></h2>
+            <p id="messageText"></p>
+
+            <a id="voteBtn" class="button hidden">前往投票</a>
+        </div>
+
+        <footer>
+            台灣女科技人學會 VoteNow 系統
+        </footer>
+    </div>
+
+    <script>
+        function getQuery(key) {
+            return new URLSearchParams(window.location.search).get(key);
+        }
+
+        const session = getQuery("session");
+        const code = getQuery("code");
+
+        const loadingDiv = document.getElementById("loading");
+        const resultDiv = document.getElementById("result");
+        const statusText = document.getElementById("statusText");
+        const messageText = document.getElementById("messageText");
+        const voteBtn = document.getElementById("voteBtn");
+
+        async function checkStatus() {
+            if (!session || !code) {
+                loadingDiv.innerText = "缺少參數：session 或 code";
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/check?session=${session}&code=${code}`);
+                const data = await res.json();
+
+                loadingDiv.classList.add("hidden");
+                resultDiv.classList.remove("hidden");
+
+                statusText.innerText = data.message;
+                messageText.innerText = `投票碼：${code}`;
+
+                if (data.status === "not_voted") {
+                    voteBtn.classList.remove("hidden");
+                    voteBtn.href = `/?session=${session}&code=${code}`;
+                }
+
+                if (data.status === "voted") {
+                    statusText.style.color = "#6a1b9a";
+                }
+
+            } catch (err) {
+                loadingDiv.innerText = "查詢失敗，請稍後再試。";
+            }
+        }
+
+        checkStatus();
+
+    </script>
+
+</body>
+
+</html>

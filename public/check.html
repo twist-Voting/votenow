@@ -125,7 +125,7 @@
             <p id="messageText"></p> -->
             <h3 id="voteListTitle" class="hidden">您投給的候選人：</h3>
             <ul id="voteList" class="hidden"></ul>
-            <!-- <a id="voteBtn" class="button hidden">前往投票</a> -->
+            <a id="voteBtn" class="button hidden">前往投票</a>
         </div>
 
         <footer>
@@ -193,6 +193,7 @@
                     voteBtn.href = `/?session=${session}&code=${code}`;
                 }
 
+                    console.log(data.status);
                 if (data.status === "voted") {
                     await loadVoteRecord();
                 }

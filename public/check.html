@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>投票狀態查詢 | VoteNow</title>
-    <link rel="stylesheet" href="/check.css">
+    <!-- <link rel="stylesheet" href="/check.css"> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -92,6 +92,21 @@
                 font-size: 20px;
             }
         }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        ul li {
+            background: #f3e5f5;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            color: #4a148c;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -108,8 +123,9 @@
         <div id="result" class="card hidden">
             <h2 id="statusText"></h2>
             <p id="messageText"></p>
-
-            <a id="voteBtn" class="button hidden">前往投票</a>
+            <h3 id="voteListTitle" class="hidden">您投給的候選人：</h3>
+            <ul id="voteList" class="hidden"></ul>
+            <!-- <a id="voteBtn" class="button hidden">前往投票</a> -->
         </div>
 
         <footer>
@@ -117,8 +133,7 @@
         </footer>
     </div>
 
-    <script>
-        function getQuery(key) {
+    <script>function getQuery(key) {
             return new URLSearchParams(window.location.search).get(key);
         }
 
@@ -130,7 +145,33 @@
         const statusText = document.getElementById("statusText");
         const messageText = document.getElementById("messageText");
         const voteBtn = document.getElementById("voteBtn");
+        const voteList = document.getElementById("voteList");
+        const voteListTitle = document.getElementById("voteListTitle");
 
+        // ========================
+        // 查詢投票紀錄 API
+        // ========================
+        async function loadVoteRecord() {
+            const res = await fetch(`/api/myvote?session=${session}&code=${code}`);
+            const data = await res.json();
+
+            if (data.voted && data.choices?.length > 0) {
+                voteListTitle.classList.remove("hidden");
+                voteList.classList.remove("hidden");
+
+                voteList.innerHTML = "";
+
+                data.choices.forEach(name => {
+                    const li = document.createElement("li");
+                    li.innerText = name;
+                    voteList.appendChild(li);
+                });
+            }
+        }
+
+        // ========================
+        // 查詢投票碼狀態
+        // ========================
         async function checkStatus() {
             if (!session || !code) {
                 loadingDiv.innerText = "缺少參數：session 或 code";
@@ -153,7 +194,7 @@
                 }
 
                 if (data.status === "voted") {
-                    statusText.style.color = "#6a1b9a";
+                    await loadVoteRecord();
                 }
 
             } catch (err) {
@@ -162,6 +203,7 @@
         }
 
         checkStatus();
+
 
     </script>
 

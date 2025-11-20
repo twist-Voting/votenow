@@ -345,7 +345,7 @@ app.get("/api/export-pdf", async (req, res) => {
     doc.moveDown(2);
 
     // ===== QRCode ②：個人查詢投票狀態 =====
-    const checkUrl = `https://votenow-bn56.onrender.com/check?session=${session}&code=${t.code}`;
+    const checkUrl = `https://votenow-bn56.onrender.com/check.html?session=${session}&code=${t.code}`;
     const checkQR = await QRCode.toDataURL(checkUrl);
 
     doc.fontSize(16).text("查詢投票狀態 QR Code（專屬於本投票碼）", { align: "center" });
@@ -361,8 +361,50 @@ app.get("/api/export-pdf", async (req, res) => {
     doc.end();
     await new Promise((resolve) => stream.on("finish", resolve));
   }
+  
 
   res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF（含投票 QR + 個人查詢 QR），儲存在 /pdf_tokens/${session}/`);
+});
+
+app.get("/api/myvote", (req, res) => {
+  const { session, code } = req.query;
+
+  const tokens = loadJSON(getFile(session, "tokens"));
+  const token = tokens.find(t => t.code === code);
+
+  if (!token) {
+    return res.status(404).json({
+      ok: false,
+      status: "not_found",
+      message: "無效的投票碼"
+    });
+  }
+
+  const votes = loadJSON(getFile(session, "votes"));
+  const candidates = loadJSON(getFile(session, "candidates"));
+
+  const record = votes.find(v => v.code === code);
+
+  if (!record) {
+    return res.status(200).json({
+      ok: true,
+      voted: false,
+      message: "此投票碼尚未投票"
+    });
+  }
+
+  const selectedCandidates = record.choices.map(id => {
+    const c = candidates.find(x => x.id === id);
+    return c ? c.name : `未知候選人(ID: ${id})`;
+  });
+
+  res.status(200).json({
+    ok: true,
+    voted: true,
+    message: "投票紀錄查詢成功",
+    votedAt: record.time,
+    choices: selectedCandidates
+  });
 });
 
 

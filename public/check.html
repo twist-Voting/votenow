@@ -121,8 +121,8 @@
         </div>
 
         <div id="result" class="card hidden">
-            <h2 id="statusText"></h2>
-            <p id="messageText"></p>
+            <!-- <h2 id="statusText"></h2>
+            <p id="messageText"></p> -->
             <h3 id="voteListTitle" class="hidden">您投給的候選人：</h3>
             <ul id="voteList" class="hidden"></ul>
             <!-- <a id="voteBtn" class="button hidden">前往投票</a> -->
@@ -179,7 +179,7 @@
             }
 
             try {
-                const res = await fetch(`/api/check?session=${session}&code=${code}`);
+                const res = await fetch(`/api/check-result?session=${session}&code=${code}`);
                 const data = await res.json();
 
                 loadingDiv.classList.add("hidden");

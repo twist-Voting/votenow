@@ -354,9 +354,9 @@ app.get("/api/export-pdf", async (req, res) => {
       align: "center"
     });
     doc.moveDown();
-    doc.fontSize(12).text(`查詢網址：${checkUrl}`, {
-      align: "center"
-    });
+    // doc.fontSize(12).text(`查詢網址：${checkUrl}`, {
+    //   align: "center"
+    // });
 
     doc.end();
     await new Promise((resolve) => stream.on("finish", resolve));
@@ -365,6 +365,35 @@ app.get("/api/export-pdf", async (req, res) => {
 
   res.send(`✅ 已為 ${tokens.length} 組「${session}」投票碼產生 PDF（含投票 QR + 個人查詢 QR），儲存在 /pdf_tokens/${session}/`);
 });
+
+app.get("/api/check-result", (req, res) => {
+  const { session, code } = req.query;
+  const tokens = loadJSON(getFile(session, "tokens"));
+  const token = tokens.find(t => t.code === code);
+
+  if (!token) {
+    return res.status(404).json({
+      ok: false,
+      status: "not_found",
+      message: "無效的投票碼"
+    });
+  }
+
+  if (token.voted) {
+    return res.status(200).json({
+      ok: true,
+      status: "voted",
+      message: "此投票碼已完成投票"
+    });
+  }
+
+  res.status(200).json({
+    ok: true,
+    status: "not_voted",
+    message: "此投票碼尚未投票，可進行投票"
+  });
+});
+
 
 app.get("/api/myvote", (req, res) => {
   const { session, code } = req.query;

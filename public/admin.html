@@ -64,7 +64,7 @@
     }
 
     .hidden {
-      display: none;
+      display: none !important;
     }
 
     #loading-mask {
@@ -185,6 +185,7 @@
         <button id="export-pdf">🧾 產出 PDF</button>
         <button id="download-pdf" style="background:#17a2b8;">🧾 下載所有 PDF（ZIP）</button>
         <button id="reset-vote" class="danger">🧨 重新投票（保留投票碼）</button>
+        <button id="export-excel" style="background:#28a745;">📥 匯出投票碼投票結果（Excel）</button>
 
         <div id="progress" class="info-box">尚未載入投票進度</div>
         <div id="token-list" class="hidden"></div>
@@ -520,6 +521,34 @@
       `).join("")}
     </div>
   `;
+    };
+    document.getElementById("export-excel").onclick = async () => {
+      const session = sessionSelect.value;
+
+      try {
+        const res = await fetch(`${apiBase}/api/export-vote-excel?session=${session}`, {
+          method: "GET",
+          credentials: "include"
+        });
+
+        if (!res.ok) {
+          return alert("⚠️ 匯出失敗，請確認有投票紀錄！");
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${session}-VoteResults.xlsx`;
+        a.click();
+        a.remove();
+
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error(err);
+        alert("⚠️ 匯出失敗！");
+      }
     };
 
 

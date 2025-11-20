@@ -436,6 +436,61 @@ app.get("/api/myvote", (req, res) => {
   });
 });
 
+import ExcelJS from "exceljs";
+
+app.get("/api/export-vote-excel", async (req, res) => {
+  const { session } = req.query;
+
+  const tokens = loadJSON(getFile(session, "tokens"));
+  const votes = loadJSON(getFile(session, "votes"));
+  const candidates = loadJSON(getFile(session, "candidates"));
+
+  // 建立 Excel
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(`${session} 投票結果`);
+
+  sheet.columns = [
+    { header: "投票碼", key: "code", width: 15 },
+    { header: "狀態", key: "status", width: 12 },
+    { header: "投票時間", key: "time", width: 25 },
+    { header: "投給的候選人", key: "choices", width: 50 }
+  ];
+
+  for (const t of tokens) {
+    const record = votes.find(v => v.code === t.code);
+
+    let choicesNames = "";
+    if (record) {
+      choicesNames = record.choices
+        .map(id => {
+          const c = candidates.find(x => x.id === id);
+          return c ? c.name : `未知ID(${id})`;
+        })
+        .join("、");
+    }
+
+    sheet.addRow({
+      code: t.code,
+      status: t.voted ? "已投票" : "未投票",
+      time: record ? record.time : "",
+      choices: choicesNames
+    });
+  }
+
+  // 輸出 Excel
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=${encodeURIComponent(session)}-voteResults.xlsx`
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
 
 // === 啟動伺服器 ===
 const PORT = process.env.PORT || 3000;
